@@ -97,6 +97,11 @@ export default async function PlayerLoginPage({ searchParams }) {
               />
             </label>
             <button type="submit" className="birvo-btn-primary">Open player portal</button>
+            <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+              <Link href={`/player/login/forgot-pin?leagueId=${leagueId}&access=${params?.access || ''}`} style={{ color: 'var(--color-primary)', fontSize: '0.9rem', fontWeight: 600 }}>
+                Forgot your PIN?
+              </Link>
+            </div>
           </form>
         ) : (
           <div className={styles.invalidLink} role="status">

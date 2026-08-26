@@ -171,7 +171,18 @@ export async function disputeScoreAction(formData) {
   if (!session?.teamId) return { error: 'Authentication required.' };
   const activeDataBackend = resolveDataBackend();
   if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-    return { error: 'Score disputes must be submitted to the league administrator.' };
+    try {
+      const adminClient = createAdminClient();
+      await playerRepository.disputeScore(adminClient, {
+        scoreId: parseEntityId(formData.get('scoreId'), activeDataBackend),
+        reason: formData.get('reason')?.trim()
+      });
+      revalidatePath('/player');
+      revalidatePath('/admin/reconciliation');
+      return { success: true };
+    } catch {
+      return { error: 'The score could not be disputed. Confirm that the round is open and try again.' };
+    }
   }
   const scoreId = Number(formData.get('scoreId'));
   const reason = formData.get('reason')?.trim();
