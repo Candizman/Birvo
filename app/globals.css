@@ -227,12 +227,12 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 14px 24px;
+  gap: 8px;
+  padding: 10px 20px;
   background: linear-gradient(135deg, var(--color-primary), #145c49);
   color: #ffffff !important;
   font-weight: 700;
-  font-size: 1.05rem;
+  font-size: 0.92rem;
   border-radius: 9999px;
   border: none;
   cursor: pointer;
@@ -260,12 +260,12 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 14px 24px;
+  gap: 8px;
+  padding: 10px 20px;
   background-color: #ffffff;
   color: var(--color-text-main) !important;
-  font-weight: 700;
-  font-size: 1.05rem;
+  font-weight: 600;
+  font-size: 0.92rem;
   border-radius: 9999px;
   border: 1px solid var(--color-border);
   cursor: pointer;
@@ -283,34 +283,6 @@ a {
 
 .birvo-btn-secondary:focus-visible {
   box-shadow: 0 0 0 4px rgba(29, 122, 95, 0.2);
-}
-
-.birvo-btn-danger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 14px 24px;
-  background-color: #fef2f2;
-  color: #991b1b !important;
-  font-weight: 700;
-  font-size: 1.05rem;
-  border-radius: 9999px;
-  border: 1px solid #fca5a5;
-  cursor: pointer;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-  transition: all 0.15s ease-in-out;
-}
-
-.birvo-btn-danger:hover,
-.birvo-btn-danger:focus-visible {
-  background-color: #fee2e2;
-  border-color: #f87171;
-  outline: none;
-}
-
-.birvo-btn-danger:focus-visible {
-  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.2);
 }
 
 /* ─── PGA Tour Score Badges ──────────────────────────────────────────────── */

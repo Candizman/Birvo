@@ -228,18 +228,24 @@
   }
 
   .menuButton {
-    width: 42px;
-    height: 42px;
+    width: 44px;
+    height: 44px;
     display: grid;
     place-content: center;
-    gap: 4px;
-    border: 1px solid #dce5e0;
+    gap: 5px;
+    border: 1px solid #c9d8d0;
     border-radius: 11px;
-    background: #f7f9f7;
+    background: #f1f5f3;
+    cursor: pointer;
+  }
+
+  .menuButton:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(29, 122, 95, 0.4);
   }
 
   .menuButton span {
-    width: 18px;
+    width: 20px;
     height: 2px;
     border-radius: 2px;
     background: #234a3e;

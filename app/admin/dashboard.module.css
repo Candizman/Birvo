@@ -61,6 +61,10 @@
   flex-wrap: wrap;
 }
 
+.quickActions > * {
+  min-height: 44px;
+}
+
 /* ─── Scoring Status Section ─────────────────────────────────────────────── */
 .scoringStatus {
   padding: 1.5rem 1.75rem;
@@ -152,11 +156,15 @@
 }
 
 .sectionAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
   color: #059669;
   font-size: 1.05rem;
   font-weight: 800;
   text-decoration: none;
-  padding: 8px 12px;
+  padding: 0 14px;
   border-radius: 8px;
 }
 
