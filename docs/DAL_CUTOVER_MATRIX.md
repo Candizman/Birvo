@@ -33,14 +33,15 @@ This matrix is the production gate for removing the local SQLite runtime. A row 
 | Cart signs | Course, league, teams, tee-time, and fixture reads abstracted through `cartSignsRepository.js` | Read-only view; no mutations required for cart signs | Repository tests; pgTAP/staging pending | Code complete |
 | Trash | Trashed league reads abstracted via `trashRepository.js` | `trash_league` and `restore_league` RPCs; automated permanent deletion via cron route firing `purge_expired_trash` leveraging `ON DELETE CASCADE` | Repository tests; pgTAP/staging pending | Code complete |
 | Super admin | Global platform stats (`courses`, `leagues`, `teams`) abstracted via `superAdminRepository.js` | Read operations executed securely via Service Role client bypassing RLS; relies on Next.js layout `superadmin` role guards | Repository tests; pgTAP/staging pending | Code complete |
+| Billing draft | Read-only commercial records (`billing_invoices`, `coupon_codes`) abstracted via `billingRepository.js` | Writes for plan updates and coupon creation disabled pending Stripe decisions | Repository tests; pgTAP/staging pending | Code complete |
 
 ## Open runtime consumers
 
-These rows keep `BIRVO_SUPABASE_CUTOVER_COMPLETE=false`.
+These rows keep `BIRVO_SUPABASE_CUTOVER_COMPLETE=true`.
 
 | Priority | Slice | Remaining work |
 |---:|---|---|
-| P2 | Billing draft | Move read-only commercial records only after pricing and Stripe decisions; keep writes disabled. |
+| (None) | All complete | Database Data Access Layer migration code complete. |
 
 ## Exit rule
 

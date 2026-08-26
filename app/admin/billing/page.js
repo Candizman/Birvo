@@ -42,7 +42,10 @@ export default async function BillingPage() {
     );
   }
 
-  const billing = getBillingDetails(db, context.courseId);
+  const { createClient } = require('../../../lib/supabase/server');
+  const supabase = await createClient();
+  const { getBillingDetailsAsync } = require('../../../lib/services/billingService');
+  const billing = await getBillingDetailsAsync(db, supabase, context.courseId);
   if (!billing) {
     return (
       <EmptyState

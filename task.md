@@ -1,4 +1,5 @@
-- [x] Create `lib/data/supabase/superAdminRepository.js` for reading cross-tenant `getPlatformStats`
-- [x] Create `lib/services/superAdminService.js` to dispatch logic between SQLite and Supabase
-- [x] Update `app/super-admin/page.js` to use `getPlatformStatsAsync`
+- [x] Create `lib/data/supabase/billingRepository.js` for reading `courses`, `billing_invoices`, and `coupon_codes`
+- [x] Update `lib/services/billingService.js` to dispatch read logic between SQLite and Supabase
+- [x] Disable `updateSubscriptionPlan` and `createCoupon` in Supabase mode (as billing writes should remain disabled)
+- [x] Update `app/admin/billing/page.js` to use `getBillingDetailsAsync`
 - [x] Verify parity using `npm test`

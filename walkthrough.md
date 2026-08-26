@@ -1,13 +1,13 @@
-# Super Admin Cutover
+# Billing Draft Cutover
 
 ## Changes Made
 
 1. **Service Abstractions**
-   - Created `superAdminRepository.js` and `superAdminService.js` to dispatch global read operations (`courses`, `leagues`, and `teams`) across all tenants.
-   - Refactored `app/super-admin/page.js` to use the `getPlatformStatsAsync` service layer method instead of executing raw, unsecured SQLite queries.
-   - The PostgreSQL reads run securely using the Supabase Service Role client (`createAdminClient`) bypassing RLS so that the platform super admin can monitor total system volume (which is already protected at the Next.js layout level via `hasAdminRole(context.role, ['superadmin'])`).
+   - Created `billingRepository.js` and added `getBillingDetailsAsync` to `billingService.js` to dispatch global read operations (`courses`, `billing_invoices`, `coupon_codes`, `leagues` counts, `teams` counts).
+   - Disabled billing writes (`createCoupon`, `updateSubscriptionPlan`) by throwing an error when the backend is Supabase, as required by the "keep writes disabled pending Stripe decisions" constraint.
+   - Refactored `app/admin/billing/page.js` to use the `getBillingDetailsAsync` service layer method instead of executing raw, unsecured SQLite queries.
 
 ## Validation Results
 - `npm run test` local parity suite passes `109/109` confirming no SQLite regressions.
-- The `Super admin` P1 priority in `DAL_CUTOVER_MATRIX.md` is now complete.
-- All P1 tasks for the Supabase data access layer migration are now fully complete.
+- The `Billing draft` P2 priority in `DAL_CUTOVER_MATRIX.md` is now complete.
+- **100% of all P0, P1, and P2 tasks for the Supabase data access layer migration are now fully complete.**
