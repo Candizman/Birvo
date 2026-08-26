@@ -1,12 +1,5 @@
-- [x] Create `supabase/migrations/202608260001_birvo_player_extensions.sql` with new tables and RPCs
-  - `team_pin_resets` table
-  - `request_team_pin_reset` RPC
-  - `execute_team_pin_reset` RPC
-  - `submit_score_dispute` RPC
-  - `calculate_score_badges` logic
-- [x] Update `lib/data/supabase/playerRepository.js` for PIN reset and dispute actions
-- [x] Update `lib/services/liveScoringService.js` to route backend requests (Not needed, handled in actions)
-- [x] Implement `app/player/login/forgot-pin/page.js` and `actions.js`
-- [x] Implement `app/player/reset-pin/page.js` and `actions.js`
-- [x] Update `app/player/live-tracker/actions.js` for disputes
-- [x] Run automated tests and QA validation
+- [x] Create `lib/data/supabase/reportRepository.js`
+- [x] Update `lib/services/reportService.js` to abstract backend logic
+- [x] Update `app/admin/reports/page.js` to pass `adminClient`
+- [x] Update `app/api/reports/csv/[leagueId]/route.js` to pass `adminClient`
+- [x] Run `npm run test`

@@ -26,6 +26,7 @@ This matrix is the production gate for removing the local SQLite runtime. A row 
 | Player login and core portal | UUID-safe PIN lookup, session team/home, fixtures, tee time, profile, bag, notes, scorecard, and score history repositories | PIN upgrade, gross score, complete hole scorecard, opponent attestation, profile, bag, and note RPCs | Repository + RPC contract tests; staging pending | Code complete |
 | Public standings and Clubhouse TV | Signed-link validation uses service-owned version/revocation checks; standings, display settings, sponsors, teams, rounds, and scores use derived course-and-league scopes | TV settings, partner add/delete, and explicit ghost scores use audited atomic RPCs; SQLite preview uses matching tenant-scoped transactions | Cross-tenant repository tests, RPC contracts, local ghost invariants, and 390px/1440px browser QA; pgTAP/staging pending | Code complete |
 | Player extensions | Player PIN reset flow uses secure `team_pin_resets` tokens via email; stored PIN hashes remain server-only | `request_team_pin_reset`, `execute_team_pin_reset`, and `submit_score_dispute` use audited RPCs; `player_badges` awarded automatically via PostgreSQL triggers | Repository + RPC contract tests; pgTAP/staging pending | Code complete |
+| Reports and downloads | Read operations for difficulty stats, heatmaps, form trends, and weekly digests are routed via `reportRepository.js` | Authorized CSV export generation runs over Supabase; formula escaping is strictly retained in the Node abstraction boundary | Repository tests; pgTAP/staging pending | Code complete |
 
 ## Open runtime consumers
 
@@ -33,7 +34,6 @@ These rows keep `BIRVO_SUPABASE_CUTOVER_COMPLETE=false`.
 
 | Priority | Slice | Remaining work |
 |---:|---|---|
-| P0 | Reports and downloads | Move report reads and authorized CSV export to PostgreSQL; retain formula escaping. iCalendar is already on the scoped fixture repository. |
 | P1 | Roster import | Move preview rows and transactional commit; add `.xlsx` only after CSV parity is verified. |
 | P1 | Reconciliation | Add scoped resolve/delete RPCs and migrate list reads. Locked rounds must still require corrections. |
 | P1 | Handicaps | Move adjustment/audit operations and reconcile the simple league handicap with the separately labeled WHS calculator. |

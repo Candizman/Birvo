@@ -1,25 +1,21 @@
-# Player Extensions & Security Cutover
+# Reports and Downloads Cutover
 
 ## Changes Made
 
-1. **Database Schema & Migrations (`202608260001_birvo_player_extensions.sql`)**
-   - Created `team_pin_resets` table with RLS and `service_role` access only.
-   - Added `request_team_pin_reset` RPC to validate contact emails and issue secure hashes.
-   - Added `execute_team_pin_reset` RPC to apply the new PIN securely and log an audit event.
-   - Added `submit_score_dispute` RPC to update the score status to `'disputed'` and write to the audit log safely inside the PostgreSQL boundary.
-   - Added a PostgreSQL Trigger (`trg_award_score_badges`) to evaluate gross scores directly against course pars on insertion into `score_hole_details`. This shifts badge generation from the client to the database, preventing spoofing.
+1. **Database Layer (`lib/data/supabase/reportRepository.js`)**
+   - Created `reportRepository.js` with new Supabase/PostgreSQL functions to fetch report data: `getCourseHoleDifficultyStats`, `getHoleHeatmap`, `getPlayerFormTrend`, `getWeeklyDigest`, and `getLeagueCSVData`.
+   - These functions mirror the data structures provided by the local SQLite database.
 
-2. **Data Access Layer (`playerRepository.js`)**
-   - Exported `requestPinReset`, `executePinReset`, and `disputeScore` using the new RPCs.
+2. **Service Abstraction (`lib/services/reportService.js`)**
+   - Refactored `reportService.js` to dispatch calls between the new `reportRepository.js` and the existing SQLite queries using the `DATA_BACKENDS` abstraction.
+   - Retained the `escapeCSVCell` function securely within the Node layer, ensuring that CSV formulas like `=SUM()` remain escaped and protected from CSV injection, regardless of the data backend.
 
-3. **Server Actions & UI**
-   - Implemented `forgot-pin` page for players to request a PIN reset link via their team contact email.
-   - Implemented `reset-pin` page for players arriving via the link to define a new PIN. 
-   - Since SMTP is not active locally, the secure reset URL is safely logged to the server console.
-   - Updated `disputeScoreAction` in `live-tracker/actions.js` to route via the Supabase RPC when active.
+3. **Frontend Routes**
+   - Updated `app/admin/reports/page.js` to use the new abstract async generators.
+   - Updated `app/api/reports/csv/[leagueId]/route.js` to instantiate the `adminClient` and securely request CSV downloads.
 
 ## Validation Results
 
-- `npm run test` completes successfully with no regressions in the SQLite runtime.
-- The PostgreSQL backend now owns the security rules for these extensions without relying on client trust.
-- UI forms are fully responsive and integrate gracefully into the existing Player portal theme.
+- SQLite tests successfully pass without regressions (`109/109`).
+- Formula escaping is safely maintained in the Node boundary.
+- The `Reports` P0 priority in `DAL_CUTOVER_MATRIX.md` is now complete.

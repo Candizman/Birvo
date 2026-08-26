@@ -21,7 +21,10 @@ export async function GET(request, { params }) {
     return NextResponse.json({ error: 'League not found' }, { status: 404 });
   }
 
-  const csv = generateCSVExport(db, id);
+  const { createAdminClient } = require('../../../../../lib/supabase/admin');
+  const adminClient = createAdminClient();
+
+  const csv = await require('../../../../../lib/services/reportService').generateCSVExportAsync(db, adminClient, id);
 
   return new Response(csv, {
     status: 200,
