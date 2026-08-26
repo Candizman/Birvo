@@ -1,18 +1,19 @@
-# Handicaps Cutover
+# Cart Signs Cutover
 
 ## Changes Made
 
-1. **PostgreSQL RPCs (`202608260004_birvo_handicaps.sql`)**
-   - Added `adjust_handicap_manually`: A scoped RPC that updates a team's `current_handicap` and `ghin_number`, while simultaneously writing an immutable `handicap_audit_logs` entry in a single atomic transaction.
+1. **Service Abstractions**
+   - Created `cartSignsRepository.js` to handle heavily-relational read operations using Supabase's `select()` join syntax.
+     - `getCourseAndLeague`
+     - `getActiveTeams`
+     - `getTeeTimesForWeek` (joins `team1_id` and `team2_id`)
+     - `getFixturesForWeek` (joins `team1_id` and `team2_id`)
+   - Created `cartSignsService.js` to dispatch read logic between `DATA_BACKENDS.SUPABASE` and SQLite. The SQLite fallback logic was preserved verbatim.
 
-2. **Service Abstractions**
-   - Created `handicapRepository.js` for reading the sorted team roster and the latest 100 handicap audit logs.
-   - Created `handicapService.js` to dispatch read and write logic between `DATA_BACKENDS.SUPABASE` and SQLite. 
-
-3. **Frontend Routes & UI Truthfulness**
-   - Refactored `app/admin/handicaps/page.js` and `app/admin/handicaps/actions.js` to run via the abstract service wrappers instead of executing raw SQLite queries.
-   - Stripped out "USGA WHS 2024 Compliance" branding and simulated fake 8-of-20 differential modals from `HandicapView.jsx`. The UI now accurately reflects that the backend generates a **Simple League Handicap** (`max(0, (avg - 36) * 0.8)`). This resolves the product requirement to reconcile the UI claim with the actual simple calculator.
+2. **Frontend Routes**
+   - Refactored `app/admin/cart-signs/page.js` to run via the abstract service wrapper instead of executing raw SQLite queries.
+   - Updated the printable footer from "Official USGA WHS Card" to "Official Simple League Handicap" to match the reality of the formulas used, aligning with the previous task's focus on UI truthfulness.
 
 ## Validation Results
 - `npm run test` local parity suite passes `109/109` confirming no SQLite regressions.
-- The `Handicaps` P1 priority in `DAL_CUTOVER_MATRIX.md` is now complete.
+- The `Cart signs` P1 priority in `DAL_CUTOVER_MATRIX.md` is now complete.

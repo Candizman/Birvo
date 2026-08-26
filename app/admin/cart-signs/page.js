@@ -20,41 +20,17 @@ export default async function CartSignsPage({ searchParams }) {
   const currentWeek = context.currentWeek || 1;
   const selectedWeek = p?.week ? parseInt(p.week) : currentWeek;
 
-  const course = db.prepare('SELECT name, city FROM courses WHERE id = ?').get(context.courseId);
-  const league = db.prepare('SELECT id, name, current_week FROM leagues WHERE id = ? AND course_id = ?').get(leagueId, context.courseId);
+  const { createAdminClient } = require('../../../lib/supabase/admin');
+  const adminClient = createAdminClient();
+  const { getCartSignsDataAsync } = require('../../../lib/services/cartSignsService');
+
+  const { course, league, activeTeams, teeTimes, fixtures } = await getCartSignsDataAsync(
+    db, adminClient, context.courseId, leagueId, selectedWeek
+  );
+
   if (!course || !league) {
     return <EmptyState title="Course or league information not found" description="Check the workspace connection and try again." primaryHref="/admin" primaryLabel="Back to dashboard" />;
   }
-
-  // Fetch all active teams in this league
-  const activeTeams = db.prepare("SELECT id, name, current_handicap FROM teams WHERE league_id = ? AND status = 'active' ORDER BY id ASC").all(leagueId);
-
-  // 1. Check if explicit tee times exist for this week
-  const teeTimes = db.prepare(`
-    SELECT
-      tt.id, tt.starting_hole, tt.starting_group, tt.start_time,
-      t1.name as team1_name, t1.current_handicap as team1_hcp,
-      t2.name as team2_name, t2.current_handicap as team2_hcp
-    FROM tee_times tt
-    LEFT JOIN teams t1 ON tt.team1_id = t1.id
-    LEFT JOIN teams t2 ON tt.team2_id = t2.id
-    WHERE tt.league_id = ? AND tt.week_number = ?
-    ORDER BY tt.starting_hole ASC, tt.starting_group ASC
-  `).all(leagueId, selectedWeek);
-
-  // 2. Check if fixtures exist for this week
-  const fixtures = db.prepare(`
-    SELECT
-      mf.id, mf.scheduled_time,
-      t1.name as team1_name, t1.current_handicap as team1_hcp,
-      t2.name as team2_name, t2.current_handicap as team2_hcp,
-      mf.is_bye
-    FROM match_fixtures mf
-    LEFT JOIN teams t1 ON mf.team1_id = t1.id
-    LEFT JOIN teams t2 ON mf.team2_id = t2.id
-    WHERE mf.league_id = ? AND mf.week_number = ?
-    ORDER BY mf.id ASC
-  `).all(leagueId, selectedWeek);
 
   // Build match signs array
   let matchSigns = [];
@@ -247,7 +223,7 @@ export default async function CartSignsPage({ searchParams }) {
 
               {/* Card Footer */}
               <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '10px', fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '1.5rem', fontWeight: 600 }}>
-                Official USGA WHS Card • Birvo Tournament System
+                Official Simple League Handicap • Birvo Tournament System
               </div>
             </div>
           ))}

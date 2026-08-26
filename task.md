@@ -1,7 +1,5 @@
-- [x] Write `supabase/migrations/202608260004_birvo_handicaps.sql` for `adjust_handicap_manually` RPC
-- [x] Create `lib/data/supabase/handicapRepository.js` for reads and mutation
-- [x] Create `lib/services/handicapService.js` to dispatch logic
-- [x] Update `app/admin/handicaps/page.js` to use service
-- [x] Update `app/admin/handicaps/actions.js` to use service
-- [x] Update `HandicapView.jsx` to accurately label "Simple League Handicap" instead of fake "WHS 8/20 Analysis"
+- [x] Create `lib/data/supabase/cartSignsRepository.js` for reads (`getCourseAndLeague`, `getActiveTeams`, `getTeeTimesForWeek`, `getFixturesForWeek`)
+- [x] Create `lib/services/cartSignsService.js` to dispatch logic between SQLite and Supabase
+- [x] Update `app/admin/cart-signs/page.js` to use `cartSignsService.js`
+- [x] Update footer string to "Official Simple League Handicap" to match the rest of the app
 - [x] Verify parity using `npm test`
