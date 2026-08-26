@@ -12,7 +12,11 @@ export default async function TrashBinPage() {
   }
 
   const courseId = context.courseId;
-  const trashedLeagues = db.prepare("SELECT id, name, trashed_at FROM leagues WHERE course_id = ? AND status = 'trashed'").all(courseId);
+  const { createAdminClient } = require('../../../lib/supabase/admin');
+  const adminClient = createAdminClient();
+  const { getTrashedLeaguesAsync } = require('../../../lib/services/trashService');
+
+  const trashedLeagues = await getTrashedLeaguesAsync(db, adminClient, courseId);
 
   return (
     <div className="container" style={{ padding: 0, maxWidth: '1000px' }}>

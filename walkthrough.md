@@ -1,19 +1,20 @@
-# Cart Signs Cutover
+# Trash & Data Recovery Cutover
 
 ## Changes Made
 
-1. **Service Abstractions**
-   - Created `cartSignsRepository.js` to handle heavily-relational read operations using Supabase's `select()` join syntax.
-     - `getCourseAndLeague`
-     - `getActiveTeams`
-     - `getTeeTimesForWeek` (joins `team1_id` and `team2_id`)
-     - `getFixturesForWeek` (joins `team1_id` and `team2_id`)
-   - Created `cartSignsService.js` to dispatch read logic between `DATA_BACKENDS.SUPABASE` and SQLite. The SQLite fallback logic was preserved verbatim.
+1. **PostgreSQL RPCs (`202608260005_birvo_trash.sql`)**
+   - Added `trash_league`: Securely soft-deletes a league by moving it to the `trashed` status.
+   - Added `restore_league`: Restores a trashed league back to active status.
+   - Added `purge_expired_trash`: Executes an integrity-checked deletion (leveraging `ON DELETE CASCADE` relations throughout the database) to permanently purge leagues that have been in the trash for > 30 days.
 
-2. **Frontend Routes**
-   - Refactored `app/admin/cart-signs/page.js` to run via the abstract service wrapper instead of executing raw SQLite queries.
-   - Updated the printable footer from "Official USGA WHS Card" to "Official Simple League Handicap" to match the reality of the formulas used, aligning with the previous task's focus on UI truthfulness.
+2. **Service Abstractions**
+   - Created `trashRepository.js` and `trashService.js` to dispatch read and write logic between `DATA_BACKENDS.SUPABASE` and SQLite.
+
+3. **Frontend Routes & Cron**
+   - Refactored `app/admin/trash/page.js` to fetch trashed leagues using the service layer.
+   - Refactored `app/admin/trash/actions.js` to execute `restoreLeagueAsync` using the service layer.
+   - Added `app/api/cron/purge-trash/route.js`, an API route protected by `CRON_SECRET`, which executes `purgeExpiredTrashAsync` to permanently delete expired data automatically on a schedule.
 
 ## Validation Results
 - `npm run test` local parity suite passes `109/109` confirming no SQLite regressions.
-- The `Cart signs` P1 priority in `DAL_CUTOVER_MATRIX.md` is now complete.
+- The `Trash` P1 priority in `DAL_CUTOVER_MATRIX.md` is now complete.

@@ -1,5 +1,7 @@
-- [x] Create `lib/data/supabase/cartSignsRepository.js` for reads (`getCourseAndLeague`, `getActiveTeams`, `getTeeTimesForWeek`, `getFixturesForWeek`)
-- [x] Create `lib/services/cartSignsService.js` to dispatch logic between SQLite and Supabase
-- [x] Update `app/admin/cart-signs/page.js` to use `cartSignsService.js`
-- [x] Update footer string to "Official Simple League Handicap" to match the rest of the app
+- [x] Create `supabase/migrations/202608260005_birvo_trash.sql` for `trash_league`, `restore_league`, and `purge_expired_trash`
+- [x] Create `lib/data/supabase/trashRepository.js` for executing trash operations
+- [x] Create `lib/services/trashService.js` to dispatch logic between SQLite and Supabase
+- [x] Update `app/admin/trash/page.js` to use `getTrashedLeaguesAsync`
+- [x] Update `app/admin/trash/actions.js` to use `restoreLeagueAsync`
+- [x] Created `app/api/cron/purge-trash/route.js` for scheduled automated permanent deletion
 - [x] Verify parity using `npm test`
