@@ -1,22 +1,19 @@
-# Roster Import Cutover
+# Reconciliation Cutover
 
 ## Changes Made
 
-1. **Excel Support (XLSX)**
-   - Installed `xlsx` package to support `.xlsx` imports alongside `.csv`.
-   - Updated `RosterImportView.jsx` file input to accept both formats.
-   - Refactored `actions.js` to process file uploads as array buffers rather than raw text strings.
-   - Implemented `parseSpreadsheetBuffer` in `rosterImportService.js` to abstract parsing. Both formats output the identical 2D array structure.
+1. **PostgreSQL RPCs (`202608260003_birvo_reconciliation.sql`)**
+   - Added `resolve_score`: A scoped RPC that updates the score's reconciliation status to 'ok', and instantly recalculates the team's Simple League Handicap using the exact same formula as the Node version (`max(0, round(((avg - 36) * 0.8), 1))`). It prevents mutation if the parent round is locked.
+   - Added `delete_disputed_score`: A scoped RPC that safely deletes a score only if its status is 'needs_review' and the round is not locked.
 
-2. **Supabase Cutover (`rosterImportService.js` & `operationsRepository.js`)**
-   - Maintained synchronous `previewRosterImport` and `commitRosterImport` functions solely for legacy SQLite parity tests.
-   - Created `previewRosterImportAsync` and `commitRosterImportAsync` that route requests based on `DATA_BACKENDS.SUPABASE`.
-   - When Supabase is active, PIN codes are generated securely in the Node process and hashed before being transmitted to the database.
+2. **Service Abstractions**
+   - Created `reconciliationRepository.js` for reading the list of scores needing review and calling the new RPCs.
+   - Created `reconciliationService.js` to dispatch logic between `DATA_BACKENDS.SUPABASE` and SQLite. The SQLite fallback logic was preserved verbatim.
 
-3. **PostgreSQL RPCs (`202608260002_birvo_roster_import.sql`)**
-   - Added `preview_roster_import`: Atomically creates the `roster_imports` batch and inserts all `roster_import_rows` using `jsonb_array_elements`. Writes the preview audit log.
-   - Added `commit_roster_import`: Receives the hashed PIN credentials in a JSON blob. Verifies the batch is still in 'preview', checks that no matching names exist in `teams`, and iterates over valid rows to insert them and return the new UUIDs to `roster_import_rows`. Emits a commit audit log upon completion.
+3. **Frontend Routes**
+   - Refactored `app/admin/reconciliation/page.js` to fetch using `getScoresPendingReconciliationAsync`.
+   - Refactored `app/admin/reconciliation/actions.js` to run mutations via the async service wrappers instead of executing raw SQLite transactions.
 
 ## Validation Results
 - `npm run test` local parity suite passes `109/109` confirming no SQLite regressions.
-- Excel (`.xlsx`) parsing successfully integrated behind the same validation constraints as `.csv`.
+- The `Reconciliation` P1 priority in `DAL_CUTOVER_MATRIX.md` is now complete.

@@ -1,7 +1,6 @@
-- [x] Create `supabase/migrations/202608260002_birvo_roster_import.sql` with RPCs
-- [x] Install `xlsx` package
-- [x] Update `lib/data/supabase/operationsRepository.js` for `previewRosterImport` and `commitRosterImport`
-- [x] Update `lib/services/rosterImportService.js` to dispatch backend calls and handle buffer parsing (CSV and XLSX)
-- [x] Update `app/admin/roster-import/actions.js` to pass buffers instead of string text
-- [x] Update `app/admin/roster-import/RosterImportView.jsx` to accept `.xlsx`
-- [x] Run `npm run test`
+- [x] Write `supabase/migrations/202608260003_birvo_reconciliation.sql` for `resolve_score` and `delete_disputed_score` RPCs.
+- [x] Create `lib/data/supabase/reconciliationRepository.js`
+- [x] Create `lib/services/reconciliationService.js` to dispatch logic
+- [x] Update `app/admin/reconciliation/page.js` to use service
+- [x] Update `app/admin/reconciliation/actions.js` to use service
+- [x] Verify parity using `npm test`

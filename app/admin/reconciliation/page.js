@@ -16,15 +16,11 @@ export default async function ReconciliationPage() {
     return <div style={{ padding: '2rem', color: 'white' }}>Please log in to continue.</div>;
   }
   const leagueId = context.leagueId;
+  const { createAdminClient } = require('../../../lib/supabase/admin');
+  const adminClient = createAdminClient();
+  const { getScoresPendingReconciliationAsync } = require('../../../lib/services/reconciliationService');
 
-  // Fetch needs_review scores for the current league
-  const reviewScores = db.prepare(`
-    SELECT s.id, s.gross_score, t.name as team_name, t.current_handicap, m.week_number
-    FROM scores s
-    JOIN matches m ON s.match_id = m.id
-    JOIN teams t ON s.team_id = t.id
-    WHERE m.league_id = ? AND s.reconciliation_status = 'needs_review'
-  `).all(leagueId);
+  const reviewScores = await getScoresPendingReconciliationAsync(db, adminClient, leagueId);
 
   return (
     <div className="container" style={{ padding: 0, maxWidth: '100%' }}>
