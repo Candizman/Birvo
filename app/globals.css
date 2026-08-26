@@ -1,26 +1,359 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Birvo product palette */
+  --color-primary: #1d7a5f;
+  --color-primary-hover: #145c49;
+  --color-primary-light: #edf7f2;
+  --color-primary-border: #cfe8dc;
+
+  --color-accent-gold: #b9773f;
+  --color-accent-gold-light: #f6eadc;
+
+  --color-bg: #f6f5f0;
+  --color-bg-subtle: #eeefe9;
+  --color-surface: #ffffff;
+  --color-surface-hover: #fafaf7;
+
+  --color-text-main: #102f28;
+  --color-text-muted: #60736c;
+  --color-text-subtle: #899891;
+
+  --color-border: #dfe5e1;
+  --color-border-subtle: #eef1ef;
+  --color-border-focus: #1d7a5f;
+
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --card-radius: 15px;
+  --card-shadow: 0 1px 3px rgba(16, 47, 40, 0.05), 0 1px 2px rgba(16, 47, 40, 0.03);
+  --card-shadow-md: 0 10px 24px -12px rgba(16, 47, 40, 0.2);
+  --card-shadow-lg: 0 22px 48px -22px rgba(16, 47, 40, 0.28);
+
+  /* Status Colors */
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-info: #0284c7;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Dark Theme Support (For TV Mode & Stadium View) */
+.dark-stadium, [data-theme="dark"] {
+  --color-bg: #090e17;
+  --color-bg-subtle: #0f172a;
+  --color-surface: #131d31;
+  --color-surface-hover: #1a2844;
+  --color-text-main: #f8fafc;
+  --color-text-muted: #94a3b8;
+  --color-text-subtle: #64748b;
+  --color-border: #1e293b;
+  --color-border-subtle: #141e33;
+  --card-bg: #131d31;
+  --card-border: #1e293b;
+  --card-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+  --color-primary-light: rgba(5, 150, 105, 0.15);
+  --color-primary-border: rgba(16, 185, 129, 0.3);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ─── Infinite Marquee Ticker ────────────────────────────────────────────── */
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
   }
 }
 
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 35s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* ─── Sticky Floating Header ─────────────────────────────────────────────── */
+.sticky-nav-container {
+  position: sticky;
+  top: 1rem;
+  z-index: 999;
+  padding: 0.5rem 1rem;
+  max-width: 1180px;
+  margin: 0 auto;
+  transition: all 0.3s ease;
+}
+
+.sticky-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.5rem;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 9999px;
+  box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.07), 0 2px 6px -1px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s ease;
+}
+
+* {
+  box-sizing: border-box;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text-main);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  color: #ffffff;
+  background: var(--color-primary);
+}
+
+:focus-visible {
+  outline: 3px solid rgba(29, 122, 95, 0.28);
+  outline-offset: 3px;
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 10000;
+  top: 10px;
+  left: 10px;
+  padding: 10px 14px;
+  border-radius: 9px;
+  color: #ffffff;
+  background: #102f28;
+  font-weight: 800;
+  transform: translateY(-160%);
+  transition: transform 120ms ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* ─── Birvo cards & surfaces ──────────────────────────────────────────────── */
+.birvo-card, .glass-panel, .glass-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.birvo-card:hover {
+  border-color: #cbd5e1;
+}
+
+.birvo-card-interactive, .glass-card-interactive {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.birvo-card-interactive:hover, .glass-card-interactive:hover {
+  transform: translateY(-2px);
+  border-color: #cbd5e1;
+  box-shadow: var(--card-shadow-md);
+}
+
+/* ─── Typography & Visual Hierarchy ──────────────────────────────────────── */
+.font-editorial {
+  font-family: "Georgia", "Fraunces", "Playfair Display", "Times New Roman", serif;
+  letter-spacing: -0.02em;
+}
+
+.title-primary {
+  color: var(--color-text-main);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.title-gold {
+  color: var(--color-text-main);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+.title-emerald {
+  color: var(--color-primary);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+.flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.container {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Birvo buttons ───────────────────────────────────────────────────────── */
+.birvo-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, var(--color-primary), #145c49);
+  color: #ffffff !important;
+  font-weight: 700;
+  font-size: 0.92rem;
+  border-radius: 9999px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(29, 122, 95, 0.2);
+  transition: all 0.15s ease-in-out;
+}
+
+.birvo-btn-primary:hover {
+  background-color: var(--color-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(29, 122, 95, 0.28);
+}
+
+.birvo-btn-primary:active {
+  transform: translateY(0);
+}
+
+.birvo-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background-color: #ffffff;
+  color: var(--color-text-main) !important;
+  font-weight: 600;
+  font-size: 0.92rem;
+  border-radius: 9999px;
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: all 0.15s ease-in-out;
+}
+
+.birvo-btn-secondary:hover {
+  background-color: var(--color-bg-subtle);
+  border-color: #cbd5e1;
+  color: var(--color-text-main) !important;
+}
+
+/* ─── PGA Tour Score Badges ──────────────────────────────────────────────── */
+.pga-eagle, .score-badge-eagle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #fef3c7;
+  border: 2px solid #d97706;
+  color: #92400e;
+  font-weight: 800;
+}
+
+.pga-birdie, .score-badge-birdie {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #ecfdf5;
+  border: 2px solid #059669;
+  color: #065f46;
+  font-weight: 800;
+}
+
+.pga-par, .score-badge-par {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-main);
+  font-weight: 600;
+}
+
+.pga-bogey, .score-badge-bogey {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: #fff7ed;
+  border: 2px solid #ea580c;
+  color: #9a3412;
+  font-weight: 800;
+}
+
+.pga-double, .score-badge-double {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: #fef2f2;
+  border: 2px solid #dc2626;
+  color: #991b1b;
+  font-weight: 800;
+}
+
+/* ─── Custom Clean Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ─── Mobile Responsiveness ──────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .admin-layout {
+    flex-direction: column !important;
+  }
+  .admin-main {
+    padding: 1.25rem 1rem !important;
+  }
+  .leaderboard-table {
+    font-size: 0.88rem;
+  }
 }

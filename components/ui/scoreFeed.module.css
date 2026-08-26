@@ -1,0 +1,46 @@
+.feedContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.emptyMessage {
+  color: var(--color-text-muted, #6b7280);
+  font-size: 0.875rem;
+  padding: 1rem;
+  text-align: center;
+  border: 1px dashed var(--color-border, #e5e7eb);
+  border-radius: var(--card-radius, 0.5rem);
+}
+
+.feedItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-radius: var(--card-radius, 0.5rem);
+  background-color: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e5e7eb);
+}
+
+.itemContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.teamName {
+  font-weight: 700;
+  color: var(--color-text-main, #111827);
+  font-size: 0.95rem;
+}
+
+.scoreDetails {
+  font-size: 0.8rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.badgeContainer {
+  flex-shrink: 0;
+  margin-left: 1rem;
+}

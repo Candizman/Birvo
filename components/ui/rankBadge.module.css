@@ -1,0 +1,18 @@
+.circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border-width: 2px;
+  border-style: solid;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.plain {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  line-height: 1;
+}

@@ -1,0 +1,7 @@
+-- Birvo production schema entry point.
+-- Apply the versioned migration below with the Supabase CLI instead of editing
+-- production from this file:
+--   supabase/migrations/202608240001_birvo_tenant_foundation.sql
+--
+-- This file intentionally contains no executable DDL. The versioned migration
+-- is the single source of truth so local, staging, and production stay aligned.

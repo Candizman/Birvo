@@ -1,0 +1,73 @@
+.checklist {
+  margin-bottom: 2rem;
+  border-color: #ead7ba;
+  background: #fffdf7;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.eyebrow {
+  color: #80511b;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+
+.header h2 {
+  margin: 5px 0 3px;
+  font-size: 1.25rem;
+}
+
+.header p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+}
+
+.percentage {
+  color: #176b45;
+  font-size: 1.15rem;
+}
+
+.progress {
+  margin: 15px 0;
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 9px;
+}
+
+.step {
+  padding: 10px 11px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  color: inherit;
+  background: #fff;
+}
+
+.stepComplete { background: #f0faf5; }
+
+.stepTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.stepStatus { color: #9a651b; }
+.stepComplete .stepStatus { color: #176b45; }
+
+.stepDescription {
+  margin: 4px 0 0 21px;
+  color: var(--color-text-muted);
+  font-size: 0.73rem;
+  line-height: 1.4;
+}

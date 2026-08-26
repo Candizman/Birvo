@@ -1,0 +1,158 @@
+.card {
+  padding: 1.4rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--card-radius);
+  color: var(--color-text-main);
+  background: var(--color-surface);
+  box-shadow: var(--card-shadow);
+}
+
+.badge {
+  min-height: 25px;
+  padding: 3px 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: #40574f;
+  background: #f7f9f8;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.badgeSuccess {
+  border-color: #b8dfcc;
+  color: #145c49;
+  background: #edf8f2;
+}
+
+.badgeWarning {
+  border-color: #ead7ba;
+  color: #80511b;
+  background: #fff8eb;
+}
+
+.badgeDanger {
+  border-color: #f0c7c7;
+  color: #8b2f2f;
+  background: #fff3f3;
+}
+
+.progressTrack {
+  width: 100%;
+  height: 9px;
+  overflow: hidden;
+  border: 1px solid #dfe7e3;
+  border-radius: 999px;
+  background: #eef2ef;
+}
+
+.progressValue {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #1d7a5f, #42a780);
+  transition: width 220ms ease;
+}
+
+.alert {
+  padding: 11px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid #cfe1d8;
+  border-radius: 11px;
+  color: #294a40;
+  background: #f3f8f5;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.alertWarning {
+  border-color: #ead7ba;
+  color: #6f4b25;
+  background: #fff8eb;
+}
+
+.alertDanger {
+  border-color: #f0c7c7;
+  color: #8b2f2f;
+  background: #fff3f3;
+}
+
+.alertDot {
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.skeleton {
+  display: block;
+  border-radius: 9px;
+  background: linear-gradient(90deg, #e8eeeb 25%, #f6f8f7 45%, #e8eeeb 65%);
+  background-size: 220% 100%;
+  animation: skeleton-shimmer 1.35s ease-in-out infinite;
+}
+
+.loadingScreen {
+  width: min(100%, 1120px);
+  margin: 0 auto;
+  padding: 0.5rem 0;
+}
+
+.loadingHeader {
+  margin-bottom: 1.6rem;
+  display: grid;
+  gap: 10px;
+}
+
+.loadingGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  gap: 1rem;
+}
+
+.loadingCard {
+  min-height: 150px;
+  padding: 1.25rem;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--card-radius);
+  background: var(--color-surface);
+}
+
+.errorState {
+  width: min(100%, 680px);
+  margin: clamp(2rem, 8vh, 6rem) auto 0;
+  padding: clamp(1.6rem, 5vw, 3rem);
+  border: 1px solid #efcdcd;
+  border-radius: 20px;
+  background: linear-gradient(145deg, #ffffff, #fff8f8);
+  box-shadow: var(--card-shadow-lg);
+}
+
+.errorState p {
+  color: var(--color-text-muted);
+  line-height: 1.65;
+}
+
+.errorReference {
+  color: var(--color-text-subtle);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.72rem;
+}
+
+@keyframes skeleton-shimmer {
+  to { background-position-x: -220%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progressValue { transition: none; }
+  .skeleton { animation: none; }
+}

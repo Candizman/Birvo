@@ -1,0 +1,21 @@
+{
+  "name": "Birvo — Smart Club & League Scoring",
+  "short_name": "Birvo",
+  "start_url": "/player",
+  "display": "standalone",
+  "background_color": "#080c14",
+  "theme_color": "#d4af37",
+  "description": "Country club golf leagues, tournaments, and live GPS scoring progressive web application",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

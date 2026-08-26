@@ -1,0 +1,267 @@
+.shell {
+  margin: 0 auto;
+  max-width: 1120px;
+}
+
+.header {
+  align-items: flex-end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+}
+
+.header h1 {
+  color: var(--color-text-main);
+  font-size: clamp(2rem, 5vw, 2.65rem);
+  letter-spacing: -0.04em;
+  margin: 0.35rem 0;
+}
+
+.header p,
+.cardHeading p {
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.eyebrow {
+  color: #047857;
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.linkWarning {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  color: #92400e;
+  font-size: 0.84rem;
+  max-width: 320px;
+  padding: 0.7rem 0.9rem;
+}
+
+.grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 430px), 1fr));
+}
+
+.card {
+  background: #fff;
+  padding: clamp(1.1rem, 3vw, 1.7rem);
+}
+
+.cardHeading {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 1.35rem;
+  padding-bottom: 1rem;
+}
+
+.cardHeading h2,
+.addForm h3 {
+  color: var(--color-text-main);
+  margin: 0 0 0.25rem;
+}
+
+.liveBadge,
+.countBadge {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 999px;
+  color: #047857;
+  flex: none;
+  font-size: 0.72rem;
+  font-weight: 850;
+  padding: 0.35rem 0.65rem;
+}
+
+.countBadge {
+  min-width: 1.8rem;
+  text-align: center;
+}
+
+.form {
+  display: grid;
+  gap: 1rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.field label {
+  color: var(--color-text-main);
+  font-size: 0.86rem;
+  font-weight: 750;
+}
+
+.field label span,
+.field small,
+.checkRow small,
+.partner small {
+  color: var(--color-text-muted);
+  display: block;
+  font-size: 0.76rem;
+  font-weight: 450;
+  line-height: 1.45;
+}
+
+.field input,
+.field textarea {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-sizing: border-box;
+  color: var(--color-text-main);
+  font: inherit;
+  padding: 0.7rem 0.8rem;
+  width: 100%;
+}
+
+.field input:focus-visible,
+.field textarea:focus-visible,
+.checkRow input:focus-visible {
+  outline: 3px solid rgba(5, 150, 105, 0.25);
+  outline-offset: 2px;
+}
+
+.inputSuffix {
+  align-items: center;
+  display: flex;
+  gap: 0.7rem;
+}
+
+.inputSuffix input {
+  max-width: 150px;
+}
+
+.inputSuffix span {
+  color: var(--color-text-muted);
+  font-size: 0.84rem;
+}
+
+.checkRow {
+  align-items: flex-start;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 9px;
+  color: var(--color-text-main);
+  cursor: pointer;
+  display: flex;
+  gap: 0.7rem;
+  padding: 0.8rem;
+}
+
+.checkRow input {
+  height: 1.1rem;
+  margin-top: 0.15rem;
+  width: 1.1rem;
+}
+
+.success,
+.error {
+  min-height: 1.2rem;
+  font-size: 0.82rem;
+}
+
+.success { color: #047857; }
+.error { color: #b91c1c; }
+
+.partnerList {
+  display: grid;
+  gap: 0.65rem;
+  margin-bottom: 1.4rem;
+}
+
+.partner {
+  align-items: center;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 10px;
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  padding: 0.75rem;
+}
+
+.partner strong,
+.partner small {
+  overflow-wrap: anywhere;
+}
+
+.order {
+  align-items: center;
+  background: #ecfdf5;
+  border-radius: 50%;
+  color: #047857;
+  display: inline-flex;
+  font-size: 0.78rem;
+  font-weight: 850;
+  height: 2rem;
+  justify-content: center;
+  width: 2rem;
+}
+
+.deleteForm {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+}
+
+.deleteButton {
+  background: #fff;
+  border: 1px solid #fecaca;
+  border-radius: 7px;
+  color: #b91c1c;
+  cursor: pointer;
+  font-weight: 700;
+  padding: 0.42rem 0.65rem;
+}
+
+.addForm {
+  border-top: 1px solid var(--color-border);
+  padding-top: 1.25rem;
+}
+
+.empty {
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+  margin: 0;
+  padding: 1rem 0;
+}
+
+@media (max-width: 640px) {
+  .header {
+    align-items: stretch;
+  }
+
+  .header > a,
+  .linkWarning {
+    box-sizing: border-box;
+    max-width: none;
+    text-align: center;
+    width: 100%;
+  }
+
+  .partner {
+    align-items: flex-start;
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .deleteForm {
+    align-items: stretch;
+    grid-column: 1 / -1;
+  }
+
+  .deleteButton {
+    width: 100%;
+  }
+}

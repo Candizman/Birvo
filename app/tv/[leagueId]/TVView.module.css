@@ -1,0 +1,133 @@
+.broadcast {
+  min-width: 0;
+}
+
+.header,
+.brand,
+.brandCopy,
+.headerTools,
+.main,
+.leaderboard,
+.sidebar,
+.footer {
+  min-width: 0;
+}
+
+.table {
+  min-width: 760px;
+}
+
+@media (max-width: 1100px) {
+  .broadcast {
+    padding: 1.5rem !important;
+    overflow: auto !important;
+  }
+
+  .header {
+    align-items: flex-start !important;
+    flex-direction: column !important;
+    gap: 1.25rem;
+  }
+
+  .headerTools {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .main {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .sidebar {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  }
+
+  .leaderboard {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .broadcast {
+    min-height: 100dvh !important;
+    padding: 1rem !important;
+  }
+
+  .brand {
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+  }
+
+  .brand > :first-child {
+    flex: 0 0 46px;
+    height: 46px !important;
+    width: 46px !important;
+  }
+
+  .titleRow {
+    align-items: flex-start !important;
+    flex-direction: column;
+  }
+
+  .titleRow h1 {
+    font-size: clamp(1.35rem, 7vw, 1.85rem) !important;
+    overflow-wrap: anywhere;
+  }
+
+  .brandCopy > :last-child {
+    font-size: 0.95rem !important;
+  }
+
+  .headerTools {
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+  }
+
+  .headerTools > * {
+    box-sizing: border-box;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .main {
+    gap: 1rem !important;
+    margin: 1rem 0 !important;
+  }
+
+  .leaderboard {
+    border-radius: 12px !important;
+    padding: 1rem !important;
+  }
+
+  .table {
+    font-size: 1rem !important;
+    min-width: 680px;
+  }
+
+  .footer {
+    align-items: flex-start !important;
+    flex-direction: column;
+    gap: 0.65rem !important;
+    padding: 12px !important;
+  }
+
+  .footer > :last-child {
+    overflow: visible !important;
+    white-space: normal !important;
+  }
+
+  .footer span {
+    font-size: 0.95rem !important;
+    white-space: normal !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .broadcast *,
+  .broadcast *::before,
+  .broadcast *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
