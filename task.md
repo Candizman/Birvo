@@ -1,7 +1,4 @@
-- [x] Create `supabase/migrations/202608260005_birvo_trash.sql` for `trash_league`, `restore_league`, and `purge_expired_trash`
-- [x] Create `lib/data/supabase/trashRepository.js` for executing trash operations
-- [x] Create `lib/services/trashService.js` to dispatch logic between SQLite and Supabase
-- [x] Update `app/admin/trash/page.js` to use `getTrashedLeaguesAsync`
-- [x] Update `app/admin/trash/actions.js` to use `restoreLeagueAsync`
-- [x] Created `app/api/cron/purge-trash/route.js` for scheduled automated permanent deletion
+- [x] Create `lib/data/supabase/superAdminRepository.js` for reading cross-tenant `getPlatformStats`
+- [x] Create `lib/services/superAdminService.js` to dispatch logic between SQLite and Supabase
+- [x] Update `app/super-admin/page.js` to use `getPlatformStatsAsync`
 - [x] Verify parity using `npm test`

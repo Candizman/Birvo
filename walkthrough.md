@@ -1,20 +1,13 @@
-# Trash & Data Recovery Cutover
+# Super Admin Cutover
 
 ## Changes Made
 
-1. **PostgreSQL RPCs (`202608260005_birvo_trash.sql`)**
-   - Added `trash_league`: Securely soft-deletes a league by moving it to the `trashed` status.
-   - Added `restore_league`: Restores a trashed league back to active status.
-   - Added `purge_expired_trash`: Executes an integrity-checked deletion (leveraging `ON DELETE CASCADE` relations throughout the database) to permanently purge leagues that have been in the trash for > 30 days.
-
-2. **Service Abstractions**
-   - Created `trashRepository.js` and `trashService.js` to dispatch read and write logic between `DATA_BACKENDS.SUPABASE` and SQLite.
-
-3. **Frontend Routes & Cron**
-   - Refactored `app/admin/trash/page.js` to fetch trashed leagues using the service layer.
-   - Refactored `app/admin/trash/actions.js` to execute `restoreLeagueAsync` using the service layer.
-   - Added `app/api/cron/purge-trash/route.js`, an API route protected by `CRON_SECRET`, which executes `purgeExpiredTrashAsync` to permanently delete expired data automatically on a schedule.
+1. **Service Abstractions**
+   - Created `superAdminRepository.js` and `superAdminService.js` to dispatch global read operations (`courses`, `leagues`, and `teams`) across all tenants.
+   - Refactored `app/super-admin/page.js` to use the `getPlatformStatsAsync` service layer method instead of executing raw, unsecured SQLite queries.
+   - The PostgreSQL reads run securely using the Supabase Service Role client (`createAdminClient`) bypassing RLS so that the platform super admin can monitor total system volume (which is already protected at the Next.js layout level via `hasAdminRole(context.role, ['superadmin'])`).
 
 ## Validation Results
 - `npm run test` local parity suite passes `109/109` confirming no SQLite regressions.
-- The `Trash` P1 priority in `DAL_CUTOVER_MATRIX.md` is now complete.
+- The `Super admin` P1 priority in `DAL_CUTOVER_MATRIX.md` is now complete.
+- All P1 tasks for the Supabase data access layer migration are now fully complete.

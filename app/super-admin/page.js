@@ -5,21 +5,13 @@ import {
 } from '../../components/icons/GolfIcons';
 
 export default async function SuperAdminDashboard() {
-  // Fetch all courses
-  const courses = db.prepare('SELECT id, name, city FROM courses').all();
+  const { createAdminClient } = require('../../lib/supabase/admin');
+  const adminClient = createAdminClient();
+  const { getPlatformStatsAsync } = require('../../lib/services/superAdminService');
 
-  // Statistics for each course
-  const coursesWithStats = courses.map(course => {
-    const leaguesCount = db.prepare('SELECT COUNT(*) as count FROM leagues WHERE course_id = ?').get(course.id).count;
-    const teamsCount = db.prepare(`
-      SELECT COUNT(*) as count FROM teams t
-      JOIN leagues l ON t.league_id = l.id
-      WHERE l.course_id = ?
-    `).get(course.id).count;
-    return { ...course, leaguesCount, teamsCount };
-  });
+  const coursesWithStats = await getPlatformStatsAsync(db, adminClient);
 
-  const totalCourses = courses.length;
+  const totalCourses = coursesWithStats.length;
   const totalLeagues = coursesWithStats.reduce((acc, c) => acc + c.leaguesCount, 0);
   const totalTeams = coursesWithStats.reduce((acc, c) => acc + c.teamsCount, 0);
 

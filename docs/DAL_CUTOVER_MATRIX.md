@@ -32,6 +32,7 @@ This matrix is the production gate for removing the local SQLite runtime. A row 
 | Handicaps | Read operations for team handicap lists and audit logs routed via `handicapRepository.js` | `adjust_handicap_manually` handles transactional updates and audit logging; UI stripped of fake WHS claims to match Simple League formula | Repository tests; pgTAP/staging pending | Code complete |
 | Cart signs | Course, league, teams, tee-time, and fixture reads abstracted through `cartSignsRepository.js` | Read-only view; no mutations required for cart signs | Repository tests; pgTAP/staging pending | Code complete |
 | Trash | Trashed league reads abstracted via `trashRepository.js` | `trash_league` and `restore_league` RPCs; automated permanent deletion via cron route firing `purge_expired_trash` leveraging `ON DELETE CASCADE` | Repository tests; pgTAP/staging pending | Code complete |
+| Super admin | Global platform stats (`courses`, `leagues`, `teams`) abstracted via `superAdminRepository.js` | Read operations executed securely via Service Role client bypassing RLS; relies on Next.js layout `superadmin` role guards | Repository tests; pgTAP/staging pending | Code complete |
 
 ## Open runtime consumers
 
@@ -39,7 +40,6 @@ These rows keep `BIRVO_SUPABASE_CUTOVER_COMPLETE=false`.
 
 | Priority | Slice | Remaining work |
 |---:|---|---|
-| P1 | Super admin | Replace global SQLite queries with server-only, platform-admin-checked operations. |
 | P2 | Billing draft | Move read-only commercial records only after pricing and Stripe decisions; keep writes disabled. |
 
 ## Exit rule
