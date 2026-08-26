@@ -1,5 +1,7 @@
-- [x] Create `lib/data/supabase/reportRepository.js`
-- [x] Update `lib/services/reportService.js` to abstract backend logic
-- [x] Update `app/admin/reports/page.js` to pass `adminClient`
-- [x] Update `app/api/reports/csv/[leagueId]/route.js` to pass `adminClient`
+- [x] Create `supabase/migrations/202608260002_birvo_roster_import.sql` with RPCs
+- [x] Install `xlsx` package
+- [x] Update `lib/data/supabase/operationsRepository.js` for `previewRosterImport` and `commitRosterImport`
+- [x] Update `lib/services/rosterImportService.js` to dispatch backend calls and handle buffer parsing (CSV and XLSX)
+- [x] Update `app/admin/roster-import/actions.js` to pass buffers instead of string text
+- [x] Update `app/admin/roster-import/RosterImportView.jsx` to accept `.xlsx`
 - [x] Run `npm run test`

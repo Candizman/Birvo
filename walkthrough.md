@@ -1,21 +1,22 @@
-# Reports and Downloads Cutover
+# Roster Import Cutover
 
 ## Changes Made
 
-1. **Database Layer (`lib/data/supabase/reportRepository.js`)**
-   - Created `reportRepository.js` with new Supabase/PostgreSQL functions to fetch report data: `getCourseHoleDifficultyStats`, `getHoleHeatmap`, `getPlayerFormTrend`, `getWeeklyDigest`, and `getLeagueCSVData`.
-   - These functions mirror the data structures provided by the local SQLite database.
+1. **Excel Support (XLSX)**
+   - Installed `xlsx` package to support `.xlsx` imports alongside `.csv`.
+   - Updated `RosterImportView.jsx` file input to accept both formats.
+   - Refactored `actions.js` to process file uploads as array buffers rather than raw text strings.
+   - Implemented `parseSpreadsheetBuffer` in `rosterImportService.js` to abstract parsing. Both formats output the identical 2D array structure.
 
-2. **Service Abstraction (`lib/services/reportService.js`)**
-   - Refactored `reportService.js` to dispatch calls between the new `reportRepository.js` and the existing SQLite queries using the `DATA_BACKENDS` abstraction.
-   - Retained the `escapeCSVCell` function securely within the Node layer, ensuring that CSV formulas like `=SUM()` remain escaped and protected from CSV injection, regardless of the data backend.
+2. **Supabase Cutover (`rosterImportService.js` & `operationsRepository.js`)**
+   - Maintained synchronous `previewRosterImport` and `commitRosterImport` functions solely for legacy SQLite parity tests.
+   - Created `previewRosterImportAsync` and `commitRosterImportAsync` that route requests based on `DATA_BACKENDS.SUPABASE`.
+   - When Supabase is active, PIN codes are generated securely in the Node process and hashed before being transmitted to the database.
 
-3. **Frontend Routes**
-   - Updated `app/admin/reports/page.js` to use the new abstract async generators.
-   - Updated `app/api/reports/csv/[leagueId]/route.js` to instantiate the `adminClient` and securely request CSV downloads.
+3. **PostgreSQL RPCs (`202608260002_birvo_roster_import.sql`)**
+   - Added `preview_roster_import`: Atomically creates the `roster_imports` batch and inserts all `roster_import_rows` using `jsonb_array_elements`. Writes the preview audit log.
+   - Added `commit_roster_import`: Receives the hashed PIN credentials in a JSON blob. Verifies the batch is still in 'preview', checks that no matching names exist in `teams`, and iterates over valid rows to insert them and return the new UUIDs to `roster_import_rows`. Emits a commit audit log upon completion.
 
 ## Validation Results
-
-- SQLite tests successfully pass without regressions (`109/109`).
-- Formula escaping is safely maintained in the Node boundary.
-- The `Reports` P0 priority in `DAL_CUTOVER_MATRIX.md` is now complete.
+- `npm run test` local parity suite passes `109/109` confirming no SQLite regressions.
+- Excel (`.xlsx`) parsing successfully integrated behind the same validation constraints as `.csv`.
