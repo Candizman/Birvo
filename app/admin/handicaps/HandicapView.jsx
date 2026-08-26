@@ -16,19 +16,6 @@ import {
 export default function HandicapView({ teams, auditLogs }) {
   const [activeTab, setActiveTab] = useState('teams'); // 'teams' | 'logs'
   const [selectedTeam, setSelectedTeam] = useState(null);
-  const [inspectingDifferentials, setInspectingDifferentials] = useState(null);
-
-  // Simulated 20 score differentials for WHS 8-of-20 analysis
-  const getSimulatedDifferentials = (teamHandicap) => {
-    return Array.from({ length: 20 }, (_, i) => {
-      const gross = Math.round(72 + teamHandicap + (Math.sin(i * 1.5) * 3));
-      const diff = Number((((gross - 72.0) * 113) / 136).toFixed(1));
-      return { roundNum: 20 - i, gross, diff };
-    }).sort((a, b) => a.diff - b.diff).map((r, idx) => ({
-      ...r,
-      isBest8: idx < 8
-    })).sort((a, b) => b.roundNum - a.roundNum);
-  };
 
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
@@ -39,14 +26,14 @@ export default function HandicapView({ teams, auditLogs }) {
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'var(--color-primary-light)', border: '1px solid var(--color-primary-border)', padding: '4px 12px', borderRadius: '16px', marginBottom: '0.5rem' }}>
             <ShieldCheckIcon size={14} color="#059669" />
             <span style={{ color: '#047857', fontSize: '0.82rem', fontWeight: 800, textTransform: 'uppercase' }}>
-              USGA WHS 2024 Compliance
+              Simple League Handicap
             </span>
           </div>
           <h1 style={{ fontSize: '2.2rem', margin: 0, fontWeight: 900, color: 'var(--color-text-main)', letterSpacing: '-0.03em' }}>
             Handicap Index Roster & Audit
           </h1>
           <p style={{ color: 'var(--color-text-muted)', marginTop: '4px', fontSize: '0.95rem' }}>
-            Official 8-of-20 Score Differential averaging, Soft/Hard Cap safeguards, and committee audit logs.
+            Official score averaging (max(0, (avg - 36) * 0.8)) and committee audit logs.
           </p>
         </div>
       </header>
@@ -105,7 +92,6 @@ export default function HandicapView({ teams, auditLogs }) {
                   <th style={{ padding: '12px 10px' }}>Team / Player</th>
                   <th style={{ padding: '12px 10px', textAlign: 'center' }}>Handicap Index</th>
                   <th style={{ padding: '12px 10px', textAlign: 'center' }}>Low HI (365d)</th>
-                  <th style={{ padding: '12px 10px', textAlign: 'center' }}>WHS 8/20 Analysis</th>
                   <th style={{ padding: '12px 10px', textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
@@ -121,15 +107,6 @@ export default function HandicapView({ teams, auditLogs }) {
                     </td>
                     <td style={{ padding: '14px 10px', textAlign: 'center', color: '#0284c7', fontWeight: 700 }}>
                       {t.low_handicap_365 !== null ? t.low_handicap_365.toFixed(1) : (t.current_handicap - 0.8).toFixed(1)}
-                    </td>
-                    <td style={{ padding: '14px 10px', textAlign: 'center' }}>
-                      <button
-                        onClick={() => setInspectingDifferentials(t)}
-                        className="birvo-btn-secondary"
-                        style={{ padding: '6px 12px', fontSize: '0.8rem', color: '#0284c7' }}
-                      >
-                        Inspect 8/20
-                      </button>
                     </td>
                     <td style={{ padding: '14px 10px', textAlign: 'right' }}>
                       <button
@@ -237,67 +214,6 @@ export default function HandicapView({ teams, auditLogs }) {
               No handicap audit records recorded yet.
             </div>
           )}
-        </div>
-      )}
-
-      {/* ─── 8-OF-20 SCORE DIFFERENTIAL INSPECTION MODAL ───────────────────────── */}
-      {inspectingDifferentials && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(15, 23, 42, 0.6)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '1rem',
-          zIndex: 999
-        }}>
-          <div className="birvo-card" style={{ width: '100%', maxWidth: '620px', padding: '2rem', background: '#ffffff', maxHeight: '85vh', overflowY: 'auto', boxShadow: 'var(--card-shadow-lg)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem', borderBottom: '1px solid var(--color-border)', paddingBottom: '1rem' }}>
-              <div>
-                <h3 style={{ fontSize: '1.35rem', color: 'var(--color-text-main)', margin: 0, fontWeight: 800 }}>
-                  WHS 8-of-20 Differentials: {inspectingDifferentials.name}
-                </h3>
-                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', margin: '4px 0 0 0' }}>
-                  Handicap Index: <strong style={{ color: '#059669' }}>{inspectingDifferentials.current_handicap.toFixed(1)}</strong> (Average of lowest 8 highlighted in green)
-                </p>
-              </div>
-              <button onClick={() => setInspectingDifferentials(null)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
-                <CloseIcon size={18} />
-              </button>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '8px' }}>
-              {getSimulatedDifferentials(inspectingDifferentials.current_handicap).map((r, i) => (
-                <div key={i} style={{
-                  padding: '10px',
-                  borderRadius: '8px',
-                  background: r.isBest8 ? '#ecfdf5' : '#f8fafc',
-                  border: r.isBest8 ? '1px solid #a7f3d0' : '1px solid var(--color-border)',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '0.7rem', color: r.isBest8 ? '#047857' : '#64748b', fontWeight: 800 }}>
-                    Round #{r.roundNum} {r.isBest8 && '★'}
-                  </div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 900, color: r.isBest8 ? '#059669' : '#475569', margin: '2px 0' }}>
-                    {r.diff}
-                  </div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
-                    Gross: {r.gross}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={() => setInspectingDifferentials(null)}
-              className="birvo-btn-secondary"
-              style={{ width: '100%', padding: '12px', marginTop: '1.5rem' }}
-            >
-              Close Differential Breakdown
-            </button>
-          </div>
         </div>
       )}
 

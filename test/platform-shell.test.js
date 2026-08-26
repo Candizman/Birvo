@@ -56,7 +56,7 @@ test('Platform shell and workspace safety', async t => {
   await t.test('admin operational pages scope data to the selected league', () => {
     assert.match(read('app/admin/page.js'), /WHERE id = \? AND course_id = \?/);
     assert.match(read('app/admin/settings/page.js'), /WHERE id = \? AND course_id = \?/);
-    assert.match(read('app/admin/handicaps/page.js'), /WHERE t\.league_id = \?/);
+    assert.match(read('lib/services/handicapService.js'), /WHERE t\.league_id = \?/);
     assert.match(read('app/admin/corrections/page.js'), /l\.id=\?/);
   });
 

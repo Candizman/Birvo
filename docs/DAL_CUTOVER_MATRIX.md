@@ -29,6 +29,7 @@ This matrix is the production gate for removing the local SQLite runtime. A row 
 | Reports and downloads | Read operations for difficulty stats, heatmaps, form trends, and weekly digests are routed via `reportRepository.js` | Authorized CSV export generation runs over Supabase; formula escaping is strictly retained in the Node abstraction boundary | Repository tests; pgTAP/staging pending | Code complete |
 | Roster import | Parses `.csv` and `.xlsx` files securely in Node into JSON arrays | `preview_roster_import` and `commit_roster_import` RPCs handle atomic inserts; stored PIN hashes generated server-side | Repository tests; pgTAP/staging pending | Code complete |
 | Reconciliation | Reads list of pending score reviews via `reconciliationRepository.js` | `resolve_score` and `delete_disputed_score` RPCs enforce locked round invariants and recalculate simple handicaps atomically | Repository tests; pgTAP/staging pending | Code complete |
+| Handicaps | Read operations for team handicap lists and audit logs routed via `handicapRepository.js` | `adjust_handicap_manually` handles transactional updates and audit logging; UI stripped of fake WHS claims to match Simple League formula | Repository tests; pgTAP/staging pending | Code complete |
 
 ## Open runtime consumers
 
@@ -36,7 +37,6 @@ These rows keep `BIRVO_SUPABASE_CUTOVER_COMPLETE=false`.
 
 | Priority | Slice | Remaining work |
 |---:|---|---|
-| P1 | Handicaps | Move adjustment/audit operations and reconcile the simple league handicap with the separately labeled WHS calculator. |
 | P1 | Cart signs | Move course, league, teams, tee-time, and fixture reads. |
 | P1 | Trash | Move soft-delete/restore and add scheduled permanent deletion with integrity checks. |
 | P1 | Super admin | Replace global SQLite queries with server-only, platform-admin-checked operations. |

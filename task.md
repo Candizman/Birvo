@@ -1,6 +1,7 @@
-- [x] Write `supabase/migrations/202608260003_birvo_reconciliation.sql` for `resolve_score` and `delete_disputed_score` RPCs.
-- [x] Create `lib/data/supabase/reconciliationRepository.js`
-- [x] Create `lib/services/reconciliationService.js` to dispatch logic
-- [x] Update `app/admin/reconciliation/page.js` to use service
-- [x] Update `app/admin/reconciliation/actions.js` to use service
+- [x] Write `supabase/migrations/202608260004_birvo_handicaps.sql` for `adjust_handicap_manually` RPC
+- [x] Create `lib/data/supabase/handicapRepository.js` for reads and mutation
+- [x] Create `lib/services/handicapService.js` to dispatch logic
+- [x] Update `app/admin/handicaps/page.js` to use service
+- [x] Update `app/admin/handicaps/actions.js` to use service
+- [x] Update `HandicapView.jsx` to accurately label "Simple League Handicap" instead of fake "WHS 8/20 Analysis"
 - [x] Verify parity using `npm test`
