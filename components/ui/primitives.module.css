@@ -8,16 +8,16 @@
 }
 
 .badge {
-  min-height: 25px;
-  padding: 3px 9px;
+  min-height: 32px;
+  padding: 6px 12px;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   border: 1px solid var(--color-border);
   border-radius: 999px;
-  color: #40574f;
-  background: #f7f9f8;
-  font-size: 0.72rem;
+  color: #294a40;
+  background: #f4f7f5;
+  font-size: 0.9rem;
   font-weight: 800;
 }
 
@@ -56,15 +56,15 @@
 }
 
 .alert {
-  padding: 11px 14px;
+  padding: 14px 18px;
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 12px;
   border: 1px solid #cfe1d8;
-  border-radius: 11px;
-  color: #294a40;
+  border-radius: 12px;
+  color: #1a332a;
   background: #f3f8f5;
-  font-size: 0.82rem;
+  font-size: 1rem;
   font-weight: 700;
   line-height: 1.5;
 }

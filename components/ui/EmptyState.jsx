@@ -32,21 +32,21 @@ export default function EmptyState({
       }}>
         <FlagstickIcon size={24} />
       </span>
-      <p style={{ margin: '22px 0 8px', color: 'var(--color-primary)', fontSize: '0.72rem', fontWeight: 850, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+      <p style={{ margin: '22px 0 8px', color: 'var(--color-primary)', fontSize: '0.9rem', fontWeight: 850, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
         {eyebrow}
       </p>
       <h1 style={{ margin: 0, maxWidth: '680px', color: 'var(--color-text-main)', fontFamily: 'Georgia, serif', fontSize: 'clamp(2rem, 5vw, 3.3rem)', lineHeight: 1.06, letterSpacing: '-0.045em' }}>
         {title}
       </h1>
-      <p style={{ maxWidth: '650px', margin: '18px 0 0', color: 'var(--color-text-muted)', fontSize: '1rem', lineHeight: 1.7 }}>
+      <p style={{ maxWidth: '650px', margin: '18px 0 0', color: 'var(--color-text-muted)', fontSize: '1.15rem', lineHeight: 1.7 }}>
         {description}
       </p>
 
       {steps.length > 0 && (
-        <ol style={{ margin: '30px 0 0', padding: 0, display: 'grid', gap: '10px', listStyle: 'none' }}>
+        <ol style={{ margin: '30px 0 0', padding: 0, display: 'grid', gap: '12px', listStyle: 'none' }}>
           {steps.map((step, index) => (
-            <li key={step} style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid var(--color-border)', borderRadius: '11px', color: '#38554c', background: 'rgba(255,255,255,0.76)', fontSize: '0.88rem', fontWeight: 700 }}>
-              <span style={{ width: '25px', height: '25px', display: 'grid', placeItems: 'center', borderRadius: '8px', color: '#ffffff', background: 'var(--color-primary)', fontSize: '0.68rem' }}>{index + 1}</span>
+            <li key={step} style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', gap: '14px', border: '1px solid var(--color-border)', borderRadius: '12px', color: '#38554c', background: 'rgba(255,255,255,0.76)', fontSize: '1.05rem', fontWeight: 700 }}>
+              <span style={{ width: '32px', height: '32px', display: 'grid', placeItems: 'center', borderRadius: '10px', color: '#ffffff', background: 'var(--color-primary)', fontSize: '0.9rem' }}>{index + 1}</span>
               {step}
             </li>
           ))}
