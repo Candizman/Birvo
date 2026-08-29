@@ -54,10 +54,10 @@ test('Platform shell and workspace safety', async t => {
   });
 
   await t.test('admin operational pages scope data to the selected league', () => {
-    assert.match(read('app/admin/page.js'), /WHERE id = \? AND course_id = \?/);
-    assert.match(read('app/admin/settings/page.js'), /WHERE id = \? AND course_id = \?/);
+    assert.match(read('lib/services/dashboardService.js'), /WHERE id = \? AND course_id = \?/);
+    assert.match(read('lib/services/dashboardService.js'), /WHERE id = \? AND course_id = \? AND status = \?/);
     assert.match(read('lib/services/handicapService.js'), /WHERE t\.league_id = \?/);
-    assert.match(read('app/admin/corrections/page.js'), /l\.id=\?/);
+    assert.match(read('lib/services/correctionsService.js'), /l\.id=\?/);
   });
 
   await t.test('critical route segments provide loading and recoverable error UI', () => {

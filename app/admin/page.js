@@ -1,13 +1,7 @@
-import db from '../../lib/database';
 import { getAdminContext } from '../../lib/auth';
-import { getLeagueStandings } from '../../lib/services/standingsService';
 import Link from 'next/link';
 import EmptyState from '../../components/ui/EmptyState';
-import { createPublicAccessToken, getPublicLinkVersion as getLocalPublicLinkVersion } from '../../lib/publicAccess';
-import { getCourseSetupProgress } from '../../lib/services/courseSetupService';
-import dataBackend from '../../lib/data/backend';
-import dashboardRepository from '../../lib/data/supabase/dashboardRepository';
-import publicAccessRepository from '../../lib/data/supabase/publicAccessRepository';
+import { createPublicAccessToken } from '../../lib/publicAccess';
 import { createClient } from '../../lib/supabase/server';
 import SetupChecklist from '../../components/ui/SetupChecklist';
 import ProgressBar from '../../components/ui/ProgressBar';
@@ -25,8 +19,6 @@ import {
   ShieldCheckIcon,
 } from '../../components/icons/GolfIcons';
 import styles from './dashboard.module.css';
-
-const { DATA_BACKENDS, resolveDataBackend } = dataBackend;
 
 export default async function AdminDashboard() {
   const context = await getAdminContext();
@@ -57,14 +49,11 @@ export default async function AdminDashboard() {
     );
   }
 
-  const activeDataBackend = resolveDataBackend();
-  const supabase = activeDataBackend === DATA_BACKENDS.SUPABASE ? await createClient() : null;
-  const dashboardSnapshot = supabase && context.leagueId
-    ? await dashboardRepository.getAdminDashboardSnapshot(supabase, { courseId, leagueId: context.leagueId })
-    : null;
-  const course = supabase
-    ? (dashboardSnapshot?.course || await dashboardRepository.getScopedCourse(supabase, courseId))
-    : db.prepare("SELECT name, city, state, postal_code, timezone, primary_color FROM courses WHERE id = ?").get(courseId);
+  const supabase = await createClient();
+  const { getAdminDashboardAsync } = require('../../lib/services/dashboardService');
+  const dashboardData = await getAdminDashboardAsync(supabase, courseId, context.leagueId);
+  const course = dashboardData.course;
+
   if (!course) {
     return (
       <EmptyState
@@ -76,11 +65,7 @@ export default async function AdminDashboard() {
     );
   }
 
-  const league = context.leagueId
-    ? (dashboardSnapshot?.league || (!supabase
-        ? db.prepare("SELECT id, name, current_week, game_format, season_length_weeks FROM leagues WHERE id = ? AND course_id = ? AND status = 'active'").get(context.leagueId, courseId)
-        : null))
-    : null;
+  const league = dashboardData.league;
   if (!league) {
     return (
       <EmptyState
@@ -96,14 +81,9 @@ export default async function AdminDashboard() {
     );
   }
 
-  const standingsData = dashboardSnapshot?.standingsData || getLeagueStandings(db, league.id);
-  const setupProgress = dashboardSnapshot?.setupProgress || getCourseSetupProgress(db, courseId, league.id);
-  const linkVersions = supabase
-    ? await publicAccessRepository.getPublicLinkVersions(supabase, { courseId, leagueId: league.id, purposes: ['standings', 'tv'] })
-    : {
-        standings: getLocalPublicLinkVersion(db, league.id, 'standings'),
-        tv: getLocalPublicLinkVersion(db, league.id, 'tv'),
-      };
+  const standingsData = dashboardData.standingsData;
+  const setupProgress = dashboardData.setupProgress;
+  const linkVersions = dashboardData.linkVersions;
   const standingsToken = createPublicAccessToken({ leagueId: league.id, purpose: 'standings', version: linkVersions.standings });
   const tvToken = createPublicAccessToken({ leagueId: league.id, purpose: 'tv', version: linkVersions.tv });
   const { totalActiveTeams, seasonStandings, weeklyResultsList, summary } = standingsData;
@@ -113,22 +93,8 @@ export default async function AdminDashboard() {
   const scoresEnteredCount = currentWeekData ? currentWeekData.scoresEnteredCount : 0;
   const completionPct = totalActiveTeams > 0 ? Math.round((scoresEnteredCount / totalActiveTeams) * 100) : 0;
 
-  const needsReviewCount = dashboardSnapshot?.needsReviewCount ?? db.prepare(`
-      SELECT COUNT(*) as c FROM scores s
-      JOIN matches m ON s.match_id = m.id
-      WHERE m.league_id = ? AND s.reconciliation_status = 'needs_review'
-    `).get(league.id).c;
-
-  // Recent scores feed with details
-  const recentScores = dashboardSnapshot?.recentScores || db.prepare(`
-      SELECT s.gross_score, s.net_score, s.attestation_status, s.reconciliation_status, s.created_at, t.name as team_name, t.current_handicap
-      FROM scores s
-      JOIN teams t ON s.team_id = t.id
-      JOIN matches m ON s.match_id = m.id
-      WHERE m.league_id = ?
-      ORDER BY s.created_at DESC
-      LIMIT 5
-    `).all(league.id);
+  const needsReviewCount = dashboardData.needsReviewCount;
+  const recentScores = dashboardData.recentScores;
 
   return (
     <div className={styles.page}>

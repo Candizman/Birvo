@@ -1,4 +1,3 @@
-import db from '../../../lib/database';
 import { getAdminContext, COURSE_MANAGEMENT_ROLES, hasAdminRole } from '../../../lib/auth';
 import { createLeague, updateLeagueFormat, generatePlayoffAction } from './actions';
 import EmptyState from '../../../components/ui/EmptyState';
@@ -6,16 +5,8 @@ import {
   TrophyIcon,
   SparklesIcon,
   FlagstickIcon,
-  ShieldCheckIcon,
-  TargetIcon,
-  UsersIcon,
-  CheckIcon
 } from '../../../components/icons/GolfIcons';
-import dataBackend from '../../../lib/data/backend';
-import leagueRepository from '../../../lib/data/supabase/leagueRepository';
 import { createClient } from '../../../lib/supabase/server';
-
-const { DATA_BACKENDS, resolveDataBackend } = dataBackend;
 
 function readBracket(value) {
   try {
@@ -34,10 +25,8 @@ export default async function LeaguesPage() {
   }
 
   const courseId = context.courseId;
-  const activeDataBackend = resolveDataBackend();
-  const leagues = activeDataBackend === DATA_BACKENDS.SUPABASE
-    ? await leagueRepository.listCourseLeagues(await createClient(), courseId)
-    : db.prepare("SELECT id, name, status, current_week, season_length_weeks, game_format, playoff_bracket, created_at FROM leagues WHERE course_id = ? AND status != 'trashed' ORDER BY created_at DESC").all(courseId);
+  const { listCourseLeaguesAsync } = require('../../../lib/services/leagueService');
+  const leagues = await listCourseLeaguesAsync(await createClient(), courseId);
 
   return (
     <div className="container" style={{ padding: 0, maxWidth: '100%' }}>

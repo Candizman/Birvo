@@ -1,13 +1,11 @@
-import db from '../../lib/database';
-import { getTVDisplayData } from '../../lib/services/tvService';
 import TVView from './[leagueId]/TVView';
 import Link from 'next/link';
-import dataBackend from '../../lib/data/backend';
-
-const { DATA_BACKENDS, resolveDataBackend } = dataBackend;
 
 export default async function TVDefaultPage() {
-  if (process.env.NODE_ENV === 'production' || resolveDataBackend() === DATA_BACKENDS.SUPABASE) {
+  const { getTVPreviewAsync } = require('../../lib/services/tvService');
+  const preview = await getTVPreviewAsync();
+
+  if (!preview) {
     return (
       <div style={{ minHeight: '100vh', background: '#07140f', color: 'white', display: 'grid', placeItems: 'center', padding: '2rem', textAlign: 'center' }}>
         <div>
@@ -19,10 +17,7 @@ export default async function TVDefaultPage() {
     );
   }
 
-  const activeLeague = db.prepare("SELECT id FROM leagues WHERE status = 'active' ORDER BY id ASC LIMIT 1").get()
-    || db.prepare("SELECT id FROM leagues ORDER BY id ASC LIMIT 1").get();
-
-  if (!activeLeague) {
+  if (preview.empty) {
     return (
       <div style={{ minHeight: '100vh', background: '#060a12', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem', textAlign: 'center' }}>
         <h1 style={{ fontSize: '2rem', marginBottom: '1rem', color: '#10b981' }}>Birvo Clubhouse TV Display</h1>
@@ -32,7 +27,7 @@ export default async function TVDefaultPage() {
     );
   }
 
-  const tvData = getTVDisplayData(db, activeLeague.id);
+  const { tvData } = preview;
 
   if (!tvData) {
     return (

@@ -1,4 +1,3 @@
-import db from '../../../lib/database';
 import { getAdminContext, COURSE_MANAGEMENT_ROLES, hasAdminRole } from '../../../lib/auth';
 import {
   SettingsIcon,
@@ -9,16 +8,10 @@ import {
   ShieldCheckIcon
 } from '../../../components/icons/GolfIcons';
 import EmptyState from '../../../components/ui/EmptyState';
-import { getRoundCloseReadiness } from '../../../lib/services/roundLifecycleService';
 import { FinalizeRoundForm, RainoutForm } from './RoundOperations';
-import { createPublicAccessToken, getPublicLinkVersion as getLocalPublicLinkVersion } from '../../../lib/publicAccess';
+import { createPublicAccessToken } from '../../../lib/publicAccess';
 import PublicLinkControls from './PublicLinkControls';
-import dataBackend from '../../../lib/data/backend';
-import dashboardRepository from '../../../lib/data/supabase/dashboardRepository';
-import publicAccessRepository from '../../../lib/data/supabase/publicAccessRepository';
 import { createClient } from '../../../lib/supabase/server';
-
-const { DATA_BACKENDS, resolveDataBackend } = dataBackend;
 
 export default async function SettingsPage() {
   const context = await getAdminContext();
@@ -28,32 +21,17 @@ export default async function SettingsPage() {
   }
 
   const courseId = context.courseId;
-  const activeDataBackend = resolveDataBackend();
-  const supabase = activeDataBackend === DATA_BACKENDS.SUPABASE ? await createClient() : null;
-  const operationsSnapshot = context.leagueId && supabase
-    ? await dashboardRepository.getLeagueOperationsSnapshot(supabase, {
-        courseId,
-        leagueId: context.leagueId,
-        weekNumber: context.currentWeek,
-      })
-    : null;
-  const league = context.leagueId
-    ? (operationsSnapshot?.league || (!supabase
-        ? db.prepare('SELECT id, name FROM leagues WHERE id = ? AND course_id = ? AND status = ?').get(context.leagueId, courseId, 'active')
-        : null))
-    : null;
+  const { getLeagueOperationsAsync } = require('../../../lib/services/dashboardService');
+  const operations = await getLeagueOperationsAsync(await createClient(), courseId, context.leagueId, context.currentWeek);
+  
+  const league = operations.league;
   if (!league) {
     return <EmptyState title="No active league to configure" description="Create an active league before using schedule, postponement, and week-closing tools." primaryHref="/admin/leagues" primaryLabel="Create league" />;
   }
-  const readiness = operationsSnapshot?.readiness || getRoundCloseReadiness(db, league.id, context.currentWeek);
+
+  const readiness = operations.readiness;
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-  const linkVersions = supabase
-    ? await publicAccessRepository.getPublicLinkVersions(supabase, { courseId, leagueId: league.id })
-    : {
-        standings: getLocalPublicLinkVersion(db, league.id, 'standings'),
-        tv: getLocalPublicLinkVersion(db, league.id, 'tv'),
-        player: getLocalPublicLinkVersion(db, league.id, 'player'),
-      };
+  const linkVersions = operations.linkVersions;
   const standingsToken = createPublicAccessToken({ leagueId: league.id, purpose: 'standings', version: linkVersions.standings });
   const tvToken = createPublicAccessToken({ leagueId: league.id, purpose: 'tv', version: linkVersions.tv });
   const playerToken = createPublicAccessToken({ leagueId: league.id, purpose: 'player', version: linkVersions.player });

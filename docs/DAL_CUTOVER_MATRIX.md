@@ -37,11 +37,24 @@ This matrix is the production gate for removing the local SQLite runtime. A row 
 
 ## Open runtime consumers
 
-These rows keep `BIRVO_SUPABASE_CUTOVER_COMPLETE=true`.
+Corrected on August 29, 2026. This section previously claimed "All complete." That claim was false and is the reason this correction is recorded rather than silently edited.
+
+Each slice above is marked "Code complete" because a Supabase repository and RPC were written for it. That is not the same as the SQLite runtime being removed, and it is not the same as the code having run. Two facts measured directly from the workspace:
+
+| Measurement | Count | Command |
+|---|---:|---|
+| Files under `app/` still importing `lib/database` | 39 | `grep -rl "lib/database" app/` |
+| Services under `lib/services/` still calling `db.prepare` | 30 | `grep -rl "db.prepare" lib/services/` |
+
+The exit rule below is therefore **not** satisfied. Neither is the more basic precondition: as of August 29, 2026 the Supabase project contained zero tables and zero applied migrations, so no migration, RLS policy, or RPC in `supabase/migrations` has ever been executed against a database.
+
+`BIRVO_SUPABASE_CUTOVER_COMPLETE` must stay `false`. The remaining work is tracked in [SQLite runtime removal](./SQLITE_REMOVAL.md).
 
 | Priority | Slice | Remaining work |
 |---:|---|---|
-| (None) | All complete | Database Data Access Layer migration code complete. |
+| P0 | PostgreSQL schema execution | Apply all ten migrations in order, run pgTAP, run two-tenant adversarial isolation. Never executed. |
+| P0 | SQLite runtime removal | Remove the backend branch from 39 route/action files and 30 services. See `SQLITE_REMOVAL.md`. |
+| P1 | Test backend | The 109 passing tests exercise SQLite only. Move the suite onto PostgreSQL so it proves the code that ships. |
 
 ## Exit rule
 
