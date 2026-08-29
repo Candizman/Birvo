@@ -12,23 +12,23 @@ select has_table('public',name,'public.'||name||' exists') from (values
 select has_table('private','rate_limit_events','rate-limit events stay outside the exposed public schema');
 
 -- Columns required by the current Birvo domain.
-select has_column('public','courses','logo_url');
-select has_column('public','courses','weather_lat');
-select has_column('public','courses','weather_lon');
-select has_column('public','courses','currency');
-select has_column('public','leagues','game_format');
-select has_column('public','leagues','trashed_at');
-select has_column('public','leagues','playoff_bracket');
-select has_column('public','teams','pin');
-select has_column('public','teams','ghin_number');
-select has_column('public','teams','low_handicap_365');
-select has_column('public','player_bag_clubs','avg_distance_yards');
-select has_column('public','scores','attested_by_team_id');
-select has_column('public','scores','scorecard_photo_url');
-select has_column('public','scores','is_ghost');
-select has_column('public','score_hole_details','fairway_hit');
-select has_column('public','score_hole_details','gir');
-select has_column('public','score_hole_details','sand_saves');
+select has_column('public','courses','logo_url','public.courses.logo_url exists');
+select has_column('public','courses','weather_lat','public.courses.weather_lat exists');
+select has_column('public','courses','weather_lon','public.courses.weather_lon exists');
+select has_column('public','courses','currency','public.courses.currency exists');
+select has_column('public','leagues','game_format','public.leagues.game_format exists');
+select has_column('public','leagues','trashed_at','public.leagues.trashed_at exists');
+select has_column('public','leagues','playoff_bracket','public.leagues.playoff_bracket exists');
+select has_column('public','teams','pin','public.teams.pin exists');
+select has_column('public','teams','ghin_number','public.teams.ghin_number exists');
+select has_column('public','teams','low_handicap_365','public.teams.low_handicap_365 exists');
+select has_column('public','player_bag_clubs','avg_distance_yards','public.player_bag_clubs.avg_distance_yards exists');
+select has_column('public','scores','attested_by_team_id','public.scores.attested_by_team_id exists');
+select has_column('public','scores','scorecard_photo_url','public.scores.scorecard_photo_url exists');
+select has_column('public','scores','is_ghost','public.scores.is_ghost exists');
+select has_column('public','score_hole_details','fairway_hit','public.score_hole_details.fairway_hit exists');
+select has_column('public','score_hole_details','gir','public.score_hole_details.gir exists');
+select has_column('public','score_hole_details','sand_saves','public.score_hole_details.sand_saves exists');
 
 select ok(
   not exists(
@@ -168,7 +168,7 @@ select ok(
 );
 select is(
   (select schema_version from public.app_metadata where key='database'),
-  4,
+  12,
   'database schema marker is at the expected version'
 );
 

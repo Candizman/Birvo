@@ -1,3 +1,11 @@
+-- Birvo roster import: staged preview, then atomic commit.
+--
+-- Corrected on 2026-08-29 during first execution against PostgreSQL. The original
+-- revision had never been run. It wrote audit_events(user_id, resource_type,
+-- resource_id, details) -- none of which exist -- and inserted into public.teams
+-- without course_id, which is NOT NULL and is also enforced by the
+-- ensure_tenant_consistency trigger. Both would have raised at runtime.
+
 -- 1. Preview Roster Import RPC
 create or replace function public.preview_roster_import(
   p_import_id uuid,
@@ -41,7 +49,7 @@ begin
   end loop;
 
   insert into public.audit_events (
-    course_id, user_id, action, resource_type, resource_id, details
+    course_id, actor_user_id, action, target_type, target_id, metadata
   ) values (
     p_course_id, p_actor_id, 'roster.import.previewed', 'roster_import', p_import_id::text, 
     jsonb_build_object('totalRows', p_total_rows, 'validRows', p_valid_rows, 'invalidRows', p_invalid_rows)
@@ -90,12 +98,14 @@ begin
       raise exception 'Credential not provided for row %', row_record.row_number;
     end if;
 
-    insert into public.teams (league_id, name, contact_email, current_handicap, pin)
+    insert into public.teams (course_id, league_id, name, contact_email, current_handicap, low_handicap_365, pin)
     values (
-      target_import.league_id, 
-      row_record.normalized_name, 
-      row_record.normalized_email, 
-      coalesce(row_record.handicap, 0), 
+      target_import.course_id,
+      target_import.league_id,
+      row_record.normalized_name,
+      row_record.normalized_email,
+      coalesce(row_record.handicap, 0),
+      coalesce(row_record.handicap, 0),
       pin_hash
     )
     returning id into new_team_id;
@@ -111,7 +121,7 @@ begin
   update public.roster_imports set status = 'committed', committed_at = now() where id = p_import_id;
 
   insert into public.audit_events (
-    course_id, user_id, action, resource_type, resource_id, details
+    course_id, actor_user_id, action, target_type, target_id, metadata
   ) values (
     p_course_id, p_actor_id, 'roster.import.committed', 'roster_import', p_import_id::text, 
     jsonb_build_object('importedRows', imported_count, 'leagueId', target_import.league_id)
@@ -122,3 +132,7 @@ end;
 $$;
 
 grant execute on function public.commit_roster_import(uuid, uuid, uuid, jsonb) to service_role;
+
+update public.app_metadata set schema_version=6,
+  migration_name='202608260003_birvo_roster_import',updated_at=now()
+  where key='database';

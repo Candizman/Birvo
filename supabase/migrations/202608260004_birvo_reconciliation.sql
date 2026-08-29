@@ -1,3 +1,11 @@
+-- Birvo reconciliation: resolve or discard a disputed score.
+--
+-- Reviewed on 2026-08-29 during first execution against PostgreSQL. The column
+-- references here were already correct. Two gaps were closed: p_actor_id was
+-- accepted but never recorded, and delete_disputed_score removed a score with no
+-- trace at all -- the audit_score_change trigger fires only on UPDATE, so a
+-- deleted scorecard vanished silently from an otherwise audited system.
+
 -- 1. Resolve Score RPC
 create or replace function public.resolve_score(
   p_score_id uuid,
@@ -39,8 +47,16 @@ begin
       net_score = p_net_score,
       gross_score = p_gross_score,
       reconciliation_status = 'ok',
+      modified_by_user_id = p_actor_id,
       updated_at = now()
   where id = p_score_id;
+
+  insert into public.score_audit_logs (
+    course_id, score_id, old_gross, new_gross, reason, modified_by_user_id
+  ) values (
+    target_score.course_id, p_score_id, target_score.gross_score, p_gross_score,
+    'Reconciliation: disputed score resolved by course management', p_actor_id
+  );
 
   -- 2. Recalculate team handicap
   select greatest(0, round(((avg(s.gross_score)::numeric) - 36) * 0.8, 1)) into new_handicap
@@ -74,6 +90,7 @@ as $$
 declare
   target_score public.scores;
   target_match public.matches;
+  removed_count integer;
 begin
   -- Validate tenant boundary and get score data
   select s.* into target_score
@@ -94,9 +111,30 @@ begin
 
   delete from public.scores
   where id = p_score_id and reconciliation_status = 'needs_review';
+  get diagnostics removed_count = row_count;
+
+  if removed_count = 0 then
+    raise exception 'Only a score flagged for review can be deleted.';
+  end if;
+
+  insert into public.audit_events (
+    course_id, actor_user_id, action, target_type, target_id, metadata
+  ) values (
+    target_score.course_id, p_actor_id, 'score.disputed.deleted', 'score', p_score_id::text,
+    jsonb_build_object(
+      'team_id', target_score.team_id,
+      'match_id', target_score.match_id,
+      'gross_score', target_score.gross_score,
+      'net_score', target_score.net_score
+    )
+  );
 
   return true;
 end;
 $$;
 
 grant execute on function public.delete_disputed_score(uuid, uuid, uuid) to service_role;
+
+update public.app_metadata set schema_version=7,
+  migration_name='202608260004_birvo_reconciliation',updated_at=now()
+  where key='database';
