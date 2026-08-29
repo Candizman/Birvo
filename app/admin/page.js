@@ -1,4 +1,5 @@
 import { getAdminContext } from '../../lib/auth';
+import { indefiniteArticleForNumber } from '../../lib/format/article';
 import Link from 'next/link';
 import EmptyState from '../../components/ui/EmptyState';
 import { createPublicAccessToken } from '../../lib/publicAccess';
@@ -112,7 +113,7 @@ export default async function AdminDashboard() {
             {league.name}
           </h1>
           <p className={styles.leagueMeta}>
-            Week {weekNumber} of a {summary.totalWeeks}-week season • Format: <strong className={styles.leagueMetaStrong}>{league.game_format.replace('_', ' ')}</strong> • {totalActiveTeams} active teams
+            Week {weekNumber} of {indefiniteArticleForNumber(summary.seasonLengthWeeks)} {summary.seasonLengthWeeks}-week season • Format: <strong className={styles.leagueMetaStrong}>{league.game_format.replace('_', ' ')}</strong> • {totalActiveTeams} active teams
           </p>
         </div>
 
@@ -173,7 +174,7 @@ export default async function AdminDashboard() {
         />
         <StatCard
           label="Schedule Progress"
-          value={`${summary.completedWeeks} / ${summary.totalWeeks}`}
+          value={`${summary.completedWeeks} / ${summary.seasonLengthWeeks}`}
           description="Completed weeks"
           labelColor="#065f46"
           valueColor="#059669"

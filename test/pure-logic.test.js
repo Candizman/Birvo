@@ -23,6 +23,7 @@ const { parseCsv } = require('../lib/services/rosterImportService');
 const { validateOnboardingInput, OnboardingError } = require('../lib/services/onboardingService');
 const { normalizeEmail, validateInvitableRole } = require('../lib/services/membershipService');
 const { PLANS } = require('../lib/services/billingService');
+const { indefiniteArticleForNumber } = require('../lib/format/article');
 
 test('Pure calculations that survive the PostgreSQL cutover', async t => {
 
@@ -55,6 +56,33 @@ test('Pure calculations that survive the PostgreSQL cutover', async t => {
     const birdies = result.seasonStandings.find(row => row.id === 'T2');
     assert.ok(eagles && birdies);
     assert.ok(eagles.weeksPlayed === 2 && birdies.weeksPlayed === 2);
+  });
+
+  await t.test('standings: season length and scheduled weeks are distinct', () => {
+    // A league configured for 18 weeks whose fixtures have not been generated has
+    // no match rows. Reporting the scheduled count as the season length rendered
+    // "Week 1 of a 0-week season" on the dashboard of a brand-new league.
+    const league = { id: 'L1', name: 'Tuesday', current_week: 1, season_length_weeks: 18 };
+    const teams = [{ id: 'T1', name: 'Eagles', current_handicap: 0, status: 'active' }];
+
+    const unscheduled = buildLeagueStandings({ league, teams, matches: [], scores: [] });
+    assert.equal(unscheduled.summary.scheduledWeeks, 0);
+    assert.equal(unscheduled.summary.seasonLengthWeeks, 18);
+
+    const partly = buildLeagueStandings({
+      league, teams,
+      matches: [{ id: 'M1', week_number: 1, status: 'locked' }, { id: 'M2', week_number: 2, status: 'open' }],
+      scores: [],
+    });
+    assert.equal(partly.summary.scheduledWeeks, 2);
+    assert.equal(partly.summary.seasonLengthWeeks, 18, 'scheduling rounds does not change the configured season');
+
+    const unconfigured = buildLeagueStandings({
+      league: { ...league, season_length_weeks: null }, teams,
+      matches: [{ id: 'M1', week_number: 1, status: 'locked' }],
+      scores: [],
+    });
+    assert.equal(unconfigured.summary.seasonLengthWeeks, 1, 'falls back to the scheduled count when unset');
   });
 
   await t.test('standings: a score flagged for review is excluded', () => {
@@ -283,6 +311,16 @@ test('Pure calculations that survive the PostgreSQL cutover', async t => {
     assert.throws(() => validateInvitableRole('course_owner'), /valid staff role/,
       'ownership is never grantable by invitation');
     assert.throws(() => validateInvitableRole('superadmin'), /valid staff role/);
+  });
+
+  await t.test('season length reads correctly in English', () => {
+    // Spoken form, not the leading digit: "an eighteen-week season", "a nineteen-week season".
+    for (const n of [8, 11, 18]) {
+      assert.equal(indefiniteArticleForNumber(n), 'an', `${n} takes "an"`);
+    }
+    for (const n of [1, 2, 9, 10, 12, 19, 20, 52]) {
+      assert.equal(indefiniteArticleForNumber(n), 'a', `${n} takes "a"`);
+    }
   });
 
   await t.test('billing plans are internally consistent', () => {
