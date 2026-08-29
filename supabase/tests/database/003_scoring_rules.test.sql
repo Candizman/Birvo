@@ -7,7 +7,7 @@
 -- is where that coverage moved to.
 begin;
 set local search_path = public, extensions;
-select plan(27);
+select plan(30);
 
 -- ─── Fixture ────────────────────────────────────────────────────────────────
 insert into auth.users(
@@ -26,6 +26,13 @@ insert into public.leagues(id,course_id,name,status,game_format,current_week,sea
 insert into public.teams(id,course_id,league_id,name,status,current_handicap) values
   ('a2000000-0000-4000-8000-000000000001','a0000000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000001','Eagles','active',0),
   ('a2000000-0000-4000-8000-000000000002','a0000000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000001','Birdies','active',0);
+
+-- A second course with a nine-hole layout, for the par assertions at the end.
+insert into public.courses(id,name,city,state) values
+  ('c9000000-0000-4000-8000-000000000009','Nine Hole Club','Kendallville','IN');
+insert into public.course_holes(course_id,layout_name,hole_number,par,stroke_index)
+select 'c9000000-0000-4000-8000-000000000009','Main Course',n,(array[4,4,3,5,4,4,3,5,4])[n],n
+from generate_series(1,9) n;
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-000000000001","email":"owner@example.com","role":"authenticated"}';
@@ -109,12 +116,10 @@ select lives_ok(
 select is((select count(*)::integer from public.scores where match_id='a2500000-0000-4000-8000-000000000001'),2,
   'both scorecards are stored');
 
--- (80 - 36) * 0.8 = 35.2
-select is((select current_handicap from public.teams where id='a2000000-0000-4000-8000-000000000001'),35.2::numeric(4,1),
-  'the handicap is recalculated as (average gross - par) * 0.8');
--- (90 - 36) * 0.8 = 43.2
-select is((select current_handicap from public.teams where id='a2000000-0000-4000-8000-000000000002'),43.2::numeric(4,1),
-  'each team gets its own recalculated handicap');
+select is((select current_handicap from public.teams where id='a2000000-0000-4000-8000-000000000001'),6.4::numeric(4,1),
+  'the handicap is (average gross - the course par) * 0.8, here (80 - 72) * 0.8');
+select is((select current_handicap from public.teams where id='a2000000-0000-4000-8000-000000000002'),14.4::numeric(4,1),
+  'each team gets its own handicap, here (90 - 72) * 0.8');
 
 -- ─── Resubmission preserves the handicap snapshot ───────────────────────────
 select lives_ok(
@@ -195,6 +200,20 @@ select throws_ok(
   'P0001','This account already belongs to a course workspace',
   'one account cannot provision a second workspace'
 );
+
+
+-- ─── Handicaps follow the course's real par, not a constant ─────────────────
+-- course_par and calculate_team_handicap are internal to the SECURITY DEFINER
+-- scoring functions and are revoked from every client role, so these run as the
+-- owner rather than as the signed-in course owner.
+reset role;
+
+select is(public.course_par('a0000000-0000-4000-8000-000000000001'), 72,
+  'the seeded eighteen-hole layout has a par of 72');
+select is(public.course_par('c9000000-0000-4000-8000-000000000009'), 36,
+  'a nine-hole layout has a par of 36');
+select is(public.course_par('00000000-0000-4000-8000-00000000ffff'), 36,
+  'a course with no layout falls back to 36 rather than null');
 
 select * from finish();
 rollback;
