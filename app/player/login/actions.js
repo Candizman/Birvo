@@ -1,12 +1,9 @@
 'use server'
 
-import db from '../../../lib/database';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createPlayerSessionToken, SESSION_TTL_SECONDS } from '../../../lib/playerSession';
 import { hashTeamPin, isHashedTeamPin, verifyTeamPin } from '../../../lib/security/pin';
-import { hasPublicLeagueAccess } from '../../../lib/publicAccess';
-import dataBackend from '../../../lib/data/backend';
 import entityIds from '../../../lib/security/entityId';
 import persistentRateLimit from '../../../lib/data/persistentRateLimit';
 import publicAccessRepository from '../../../lib/data/supabase/publicAccessRepository';
@@ -14,25 +11,21 @@ import playerRepository from '../../../lib/data/supabase/playerRepository';
 import operationsRepository from '../../../lib/data/supabase/operationsRepository';
 import { createAdminClient } from '../../../lib/supabase/admin';
 
-const { DATA_BACKENDS, resolveDataBackend } = dataBackend;
 const { UUID_PATTERN, normalizeEntityId } = entityIds;
 const { checkDataRateLimit } = persistentRateLimit;
 const { validatePublicLeagueAccess } = publicAccessRepository;
 const { getPlayerLoginTeam } = playerRepository;
 const { upgradePlayerPinHash } = operationsRepository;
 
-function parseEntityId(value, backend) {
+function parseEntityId(value) {
   const normalized = normalizeEntityId(value);
   if (!normalized) return null;
-  if (backend === DATA_BACKENDS.SUPABASE) return UUID_PATTERN.test(normalized) ? normalized : null;
-  const numeric = Number(normalized);
-  return Number.isSafeInteger(numeric) && numeric > 0 ? numeric : null;
+  return UUID_PATTERN.test(normalized) ? normalized : null;
 }
 
 export async function playerLogin(formData) {
-  const activeDataBackend = resolveDataBackend();
-  const teamId = parseEntityId(formData.get('teamId'), activeDataBackend);
-  const leagueId = parseEntityId(formData.get('leagueId'), activeDataBackend);
+  const teamId = parseEntityId(formData.get('teamId'));
+  const leagueId = parseEntityId(formData.get('leagueId'));
   const access = formData.get('access')?.trim() || '';
   const pin = formData.get('pin')?.trim();
   const retryUrl = leagueId
@@ -45,12 +38,10 @@ export async function playerLogin(formData) {
   const source = requestHeaders.get('x-forwarded-for')?.split(',')[0]?.trim()
     || requestHeaders.get('x-real-ip')
     || 'unknown';
-  const adminClient = activeDataBackend === DATA_BACKENDS.SUPABASE ? createAdminClient() : null;
+  const adminClient = createAdminClient();
   let rateLimit;
   try {
     rateLimit = await checkDataRateLimit({
-      backend: activeDataBackend,
-      sqliteDb: db,
       adminClient,
       scope: `player_login:${leagueId}`,
       subject: `${source}:${teamId}`,
@@ -64,14 +55,9 @@ export async function playerLogin(formData) {
 
   let team = null;
   try {
-    const hasAccess = activeDataBackend === DATA_BACKENDS.SUPABASE
-      ? adminClient && await validatePublicLeagueAccess(adminClient, access, { leagueId, purpose: 'player' })
-      : hasPublicLeagueAccess(access, { leagueId, purpose: 'player', db });
-    team = hasAccess
-      ? (activeDataBackend === DATA_BACKENDS.SUPABASE
-          ? await getPlayerLoginTeam(adminClient, { teamId, leagueId })
-          : db.prepare("SELECT id, league_id, pin FROM teams WHERE id = ? AND league_id = ? AND status = 'active'").get(teamId, leagueId))
-      : null;
+    const hasAccess = adminClient
+      && await validatePublicLeagueAccess(adminClient, access, { leagueId, purpose: 'player' });
+    team = hasAccess ? await getPlayerLoginTeam(adminClient, { teamId, leagueId }) : null;
   } catch {
     team = null;
   }
@@ -81,11 +67,7 @@ export async function playerLogin(formData) {
   if (!isHashedTeamPin(team.pin)) {
     const pinHash = hashTeamPin(pin);
     try {
-      if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-        await upgradePlayerPinHash(adminClient, { teamId: team.id, pinHash });
-      } else {
-        db.prepare('UPDATE teams SET pin = ? WHERE id = ?').run(pinHash, team.id);
-      }
+      await upgradePlayerPinHash(adminClient, { teamId: team.id, pinHash });
     } catch {
       redirect(retryUrl);
     }

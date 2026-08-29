@@ -1,21 +1,18 @@
 'use server'
 
 import { getPlayerSession } from '../../../lib/auth';
-import { hashTeamPin, isHashedTeamPin, verifyTeamPin } from '../../../lib/security/pin';
-import dataBackend from '../../../lib/data/backend';
 import entityIds from '../../../lib/security/entityId';
 import { createAdminClient } from '../../../lib/supabase/admin';
+import liveScoringService from '../../../lib/services/liveScoringService';
 import { revalidatePath } from 'next/cache';
 
-const { DATA_BACKENDS, resolveDataBackend } = dataBackend;
 const { UUID_PATTERN, normalizeEntityId } = entityIds;
+const { submitLiveRound: submitLiveRoundToDb, attestOwnScore, disputeScore } = liveScoringService;
 
-function parseEntityId(value, backend) {
+function parseEntityId(value) {
   const normalized = normalizeEntityId(value);
   if (!normalized) return null;
-  if (backend === DATA_BACKENDS.SUPABASE) return UUID_PATTERN.test(normalized) ? normalized : null;
-  const numeric = Number(normalized);
-  return Number.isSafeInteger(numeric) && numeric > 0 ? numeric : null;
+  return UUID_PATTERN.test(normalized) ? normalized : null;
 }
 
 function readHoleDetails(formData) {
@@ -43,8 +40,7 @@ export async function submitLiveRound(formData) {
   const session = await getPlayerSession();
   if (!session?.teamId) return { error: 'Authentication required.' };
 
-  const activeDataBackend = resolveDataBackend();
-  const matchId = parseEntityId(formData.get('matchId'), activeDataBackend);
+  const matchId = parseEntityId(formData.get('matchId'));
   const weekNumber = Number(formData.get('weekNumber'));
   const photoUrl = formData.get('photoUrl')?.trim() || null;
   const holes = readHoleDetails(formData);
@@ -53,9 +49,7 @@ export async function submitLiveRound(formData) {
   }
 
   try {
-    const adminClient = createAdminClient();
-    const { submitLiveRoundAsync } = require('../../../lib/services/liveScoringService');
-    const result = await submitLiveRoundAsync(adminClient, session, matchId, weekNumber, holes, photoUrl);
+    const result = await submitLiveRoundToDb(createAdminClient(), session, matchId, weekNumber, holes, photoUrl);
     revalidatePath('/player');
     revalidatePath('/player/live-tracker');
     revalidatePath('/standings');
@@ -68,15 +62,12 @@ export async function submitLiveRound(formData) {
 export async function attestOwnScoreAction(formData) {
   const session = await getPlayerSession();
   if (!session?.teamId) return { error: 'Authentication required.' };
-  const activeDataBackend = resolveDataBackend();
-  const scoreId = parseEntityId(formData.get('scoreId'), activeDataBackend);
+  const scoreId = parseEntityId(formData.get('scoreId'));
   const pin = formData.get('pin')?.trim();
   if (!scoreId || !/^\d{4}$/.test(pin || '')) return { error: 'Enter the assigned opponent’s four-digit PIN.' };
 
   try {
-    const adminClient = createAdminClient();
-    const { attestOwnScoreActionAsync } = require('../../../lib/services/liveScoringService');
-    await attestOwnScoreActionAsync(adminClient, session, scoreId, pin);
+    await attestOwnScore(createAdminClient(), session, scoreId, pin);
     revalidatePath('/player');
     revalidatePath('/player/live-tracker');
     revalidatePath('/standings');
@@ -89,13 +80,10 @@ export async function attestOwnScoreAction(formData) {
 export async function disputeScoreAction(formData) {
   const session = await getPlayerSession();
   if (!session?.teamId) return { error: 'Authentication required.' };
-  const activeDataBackend = resolveDataBackend();
   try {
-    const adminClient = createAdminClient();
-    const scoreId = parseEntityId(formData.get('scoreId'), activeDataBackend);
+    const scoreId = parseEntityId(formData.get('scoreId'));
     const reason = formData.get('reason')?.trim();
-    const { disputeScoreActionAsync } = require('../../../lib/services/liveScoringService');
-    await disputeScoreActionAsync(adminClient, session, scoreId, reason);
+    await disputeScore(createAdminClient(), session, scoreId, reason);
     revalidatePath('/player');
     revalidatePath('/admin/reconciliation');
     return { success: true };

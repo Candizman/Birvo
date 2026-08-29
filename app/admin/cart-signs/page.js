@@ -1,9 +1,10 @@
-import db from '../../../lib/database';
 import PrintButton from './PrintButton';
 import { getAdminContext } from '../../../lib/auth';
 import { FlagstickIcon, TrophyIcon, GolfCartIcon } from '../../../components/icons/GolfIcons';
 import Link from 'next/link';
 import EmptyState from '../../../components/ui/EmptyState';
+import { getCartSignsData } from '../../../lib/services/cartSignsService';
+import { createAdminClient } from '../../../lib/supabase/admin';
 
 export default async function CartSignsPage({ searchParams }) {
   const context = await getAdminContext();
@@ -20,12 +21,8 @@ export default async function CartSignsPage({ searchParams }) {
   const currentWeek = context.currentWeek || 1;
   const selectedWeek = p?.week ? parseInt(p.week) : currentWeek;
 
-  const { createAdminClient } = require('../../../lib/supabase/admin');
-  const adminClient = createAdminClient();
-  const { getCartSignsDataAsync } = require('../../../lib/services/cartSignsService');
-
-  const { course, league, activeTeams, teeTimes, fixtures } = await getCartSignsDataAsync(
-    db, adminClient, context.courseId, leagueId, selectedWeek
+  const { course, league, activeTeams, teeTimes, fixtures } = await getCartSignsData(
+    createAdminClient(), context.courseId, leagueId, selectedWeek
   );
 
   if (!course || !league) {

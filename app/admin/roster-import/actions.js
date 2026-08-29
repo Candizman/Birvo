@@ -1,33 +1,35 @@
 'use server'
 
 import { revalidatePath } from 'next/cache';
-import db from '../../../lib/database';
 import { requireAdminRole, COURSE_MANAGEMENT_ROLES } from '../../../lib/auth';
 import rosterImportService from '../../../lib/services/rosterImportService';
-
 import { createAdminClient } from '../../../lib/supabase/admin';
+import entityId from '../../../lib/security/entityId';
+
+const { normalizeEntityId } = entityId;
 
 export async function previewRosterAction(previousState, formData) {
   try {
     const context = await requireAdminRole(COURSE_MANAGEMENT_ROLES);
-    const leagueId = formData.get('leagueId');
+    const leagueId = normalizeEntityId(formData.get('leagueId'));
+    if (!leagueId) return { error: 'Select a league.' };
+
     const file = formData.get('rosterFile');
     if (!file || typeof file.arrayBuffer !== 'function' || !file.name) return { error: 'Choose a valid file.' };
-    
+
     const nameLower = file.name.toLowerCase();
     if (!nameLower.endsWith('.csv') && !nameLower.endsWith('.xlsx')) {
       return { error: 'Roster uploads must use .csv or .xlsx format.' };
     }
-    
+
     if (file.size > 1024 * 1024) return { error: 'Files must be smaller than 1 MB.' };
     const fileBuffer = Buffer.from(await file.arrayBuffer());
-    const adminClient = createAdminClient();
-    
-    const preview = await rosterImportService.previewRosterImportAsync(db, adminClient, {
-      courseId: context.courseId, 
-      leagueId, 
-      uploadedByUserId: context.user.id, 
-      sourceName: file.name, 
+
+    const preview = await rosterImportService.previewRosterImport(createAdminClient(), {
+      courseId: context.courseId,
+      leagueId,
+      uploadedByUserId: context.user.id,
+      sourceName: file.name,
       fileBuffer
     });
     return { preview };
@@ -39,14 +41,13 @@ export async function previewRosterAction(previousState, formData) {
 export async function commitRosterAction(previousState, formData) {
   try {
     const context = await requireAdminRole(COURSE_MANAGEMENT_ROLES);
-    const adminClient = createAdminClient();
-    
-    const result = await rosterImportService.commitRosterImportAsync(db, adminClient, {
-      importId: String(formData.get('importId') || ''), 
-      courseId: context.courseId, 
+
+    const result = await rosterImportService.commitRosterImport(createAdminClient(), {
+      importId: String(formData.get('importId') || ''),
+      courseId: context.courseId,
       actorUserId: context.user.id,
     });
-    
+
     revalidatePath('/admin');
     revalidatePath('/admin/handicaps');
     revalidatePath('/admin/roster-import');

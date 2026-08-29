@@ -1,26 +1,21 @@
-import db from '../../../lib/database';
 import { getAdminContext } from '../../../lib/auth';
 import { resolveScore, deleteScore } from './actions';
 import {
   ShieldCheckIcon,
   AlertCircleIcon,
   CheckIcon,
-  TrashIcon,
-  FlagstickIcon,
-  CalendarIcon
 } from '../../../components/icons/GolfIcons';
+import reconciliationRepository from '../../../lib/data/supabase/reconciliationRepository';
+import { createAdminClient } from '../../../lib/supabase/admin';
 
 export default async function ReconciliationPage() {
   const context = await getAdminContext();
   if (!context) {
     return <div style={{ padding: '2rem', color: 'white' }}>Please log in to continue.</div>;
   }
-  const leagueId = context.leagueId;
-  const { createAdminClient } = require('../../../lib/supabase/admin');
-  const adminClient = createAdminClient();
-  const { getScoresPendingReconciliationAsync } = require('../../../lib/services/reconciliationService');
-
-  const reviewScores = await getScoresPendingReconciliationAsync(db, adminClient, leagueId);
+  const reviewScores = await reconciliationRepository.getScoresPendingReconciliation(
+    createAdminClient(), context.leagueId
+  );
 
   return (
     <div className="container" style={{ padding: 0, maxWidth: '100%' }}>

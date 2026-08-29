@@ -1,16 +1,12 @@
 import Link from 'next/link';
 import BrandMark from '../../../components/BrandMark';
-import db from '../../../lib/database';
-import { hasPublicLeagueAccess } from '../../../lib/publicAccess';
 import loginStyles from '../../login/login.module.css';
 import { joinLeague } from './actions';
-import dataBackend from '../../../lib/data/backend';
 import entityIds from '../../../lib/security/entityId';
 import publicAccessRepository from '../../../lib/data/supabase/publicAccessRepository';
 import playerRepository from '../../../lib/data/supabase/playerRepository';
 import { createAdminClient } from '../../../lib/supabase/admin';
 
-const { DATA_BACKENDS, resolveDataBackend } = dataBackend;
 const { UUID_PATTERN, normalizeEntityId } = entityIds;
 const { validatePublicLeagueAccess } = publicAccessRepository;
 const { getActiveLeagueContext } = playerRepository;
@@ -26,29 +22,18 @@ const formatNames = {
 export default async function JoinLeaguePage({ params, searchParams }) {
   const { leagueId } = await params;
   const query = await searchParams;
-  const activeDataBackend = resolveDataBackend();
   const normalizedLeagueId = normalizeEntityId(leagueId);
   let league = null;
   let course = null;
   try {
-    if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-      if (normalizedLeagueId && UUID_PATTERN.test(normalizedLeagueId)) {
-        const adminClient = createAdminClient();
-        const allowed = adminClient && await validatePublicLeagueAccess(
-          adminClient, query?.access, { leagueId: normalizedLeagueId, purpose: 'player' }
-        );
-        const context = allowed ? await getActiveLeagueContext(adminClient, normalizedLeagueId) : null;
-        league = context?.league || null;
-        course = context?.course || null;
-      }
-    } else {
-      const numericLeagueId = Number(normalizedLeagueId);
-      const allowed = Number.isSafeInteger(numericLeagueId) && numericLeagueId > 0
-        && hasPublicLeagueAccess(query?.access, { leagueId: numericLeagueId, purpose: 'player', db });
-      league = allowed
-        ? db.prepare("SELECT id, name, course_id, game_format FROM leagues WHERE id = ? AND status = 'active'").get(numericLeagueId)
-        : null;
-      course = league ? db.prepare('SELECT name, city FROM courses WHERE id = ?').get(league.course_id) : null;
+    if (normalizedLeagueId && UUID_PATTERN.test(normalizedLeagueId)) {
+      const adminClient = createAdminClient();
+      const allowed = adminClient && await validatePublicLeagueAccess(
+        adminClient, query?.access, { leagueId: normalizedLeagueId, purpose: 'player' }
+      );
+      const context = allowed ? await getActiveLeagueContext(adminClient, normalizedLeagueId) : null;
+      league = context?.league || null;
+      course = context?.course || null;
     }
   } catch {
     league = null;

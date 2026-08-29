@@ -1,16 +1,16 @@
 'use server'
-import db from '../../../lib/database';
 import { revalidatePath } from 'next/cache';
-import { calculateNewHandicap } from '../../../lib/domain/handicap';
 import { requireAdminRole, SCORING_OPERATION_ROLES } from '../../../lib/auth';
-
 import { createAdminClient } from '../../../lib/supabase/admin';
-const { resolveScoreAsync, deleteScoreAsync } = require('../../../lib/services/reconciliationService');
+import reconciliationRepository from '../../../lib/data/supabase/reconciliationRepository';
+import entityId from '../../../lib/security/entityId';
+
+const { normalizeEntityId } = entityId;
 
 export async function resolveScore(formData) {
   const context = await requireAdminRole(SCORING_OPERATION_ROLES);
 
-  const scoreId = formData.get('scoreId');
+  const scoreId = normalizeEntityId(formData.get('scoreId'));
   const handicapUsed = Number(formData.get('handicap'));
   const grossScore = Number(formData.get('gross'));
 
@@ -18,13 +18,13 @@ export async function resolveScore(formData) {
     throw new Error('Missing or invalid parameters.');
   }
 
-  const adminClient = createAdminClient();
-  await resolveScoreAsync(db, adminClient, { 
-    scoreId, 
-    courseId: context.courseId, 
-    actorUserId: context.user.id, 
-    handicapUsed, 
-    grossScore 
+  await reconciliationRepository.resolveDisputedScore(createAdminClient(), {
+    scoreId,
+    courseId: context.courseId,
+    actorUserId: context.user.id,
+    handicapUsed,
+    grossScore,
+    netScore: grossScore - handicapUsed,
   });
 
   revalidatePath('/admin/reconciliation');
@@ -35,17 +35,16 @@ export async function resolveScore(formData) {
 export async function deleteScore(formData) {
   const context = await requireAdminRole(SCORING_OPERATION_ROLES);
 
-  const scoreId = formData.get('scoreId');
+  const scoreId = normalizeEntityId(formData.get('scoreId'));
 
   if (!scoreId) {
     throw new Error('Missing score ID parameter.');
   }
 
-  const adminClient = createAdminClient();
-  await deleteScoreAsync(db, adminClient, { 
-    scoreId, 
-    courseId: context.courseId, 
-    actorUserId: context.user.id 
+  await reconciliationRepository.deleteDisputedScore(createAdminClient(), {
+    scoreId,
+    courseId: context.courseId,
+    actorUserId: context.user.id,
   });
 
   revalidatePath('/admin/reconciliation');

@@ -1,12 +1,8 @@
 import { NextResponse } from 'next/server';
-import db from '../../../../lib/database';
-import { buildICalCalendar, generateICalCalendar } from '../../../../lib/services/fixtureService';
+import { buildICalCalendar } from '../../../../lib/services/fixtureService';
 import { getAdminContext } from '../../../../lib/auth';
-import dataBackend from '../../../../lib/data/backend';
 import leagueRepository from '../../../../lib/data/supabase/leagueRepository';
 import { createClient } from '../../../../lib/supabase/server';
-
-const { DATA_BACKENDS, resolveDataBackend } = dataBackend;
 
 export async function GET(request, { params }) {
   const { leagueId } = await params;
@@ -20,20 +16,13 @@ export async function GET(request, { params }) {
   if (!selectedLeague) {
     return NextResponse.json({ error: 'Invalid League ID' }, { status: 400 });
   }
-  const activeDataBackend = resolveDataBackend();
-  let icsData;
-  if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-    const calendar = await leagueRepository.getLeagueCalendarData(await createClient(), {
-      courseId: context.courseId,
-      leagueId: selectedLeague.id,
-    });
-    if (!calendar) return NextResponse.json({ error: 'League not found' }, { status: 404 });
-    icsData = buildICalCalendar(calendar);
-  } else {
-    const league = db.prepare('SELECT id FROM leagues WHERE id = ? AND course_id = ?').get(selectedLeague.id, context.courseId);
-    if (!league) return NextResponse.json({ error: 'League not found' }, { status: 404 });
-    icsData = generateICalCalendar(db, selectedLeague.id);
-  }
+
+  const calendar = await leagueRepository.getLeagueCalendarData(await createClient(), {
+    courseId: context.courseId,
+    leagueId: selectedLeague.id,
+  });
+  if (!calendar) return NextResponse.json({ error: 'League not found' }, { status: 404 });
+  const icsData = buildICalCalendar(calendar);
 
   return new Response(icsData, {
     status: 200,

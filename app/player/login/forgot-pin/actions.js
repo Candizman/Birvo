@@ -2,23 +2,15 @@
 
 import { redirect } from 'next/navigation';
 import crypto from 'node:crypto';
-import dataBackend from '../../../../lib/data/backend';
 import playerRepository from '../../../../lib/data/supabase/playerRepository';
 import { createAdminClient } from '../../../../lib/supabase/admin';
 import entityIds from '../../../../lib/security/entityId';
 
-const { DATA_BACKENDS, resolveDataBackend } = dataBackend;
 const { normalizeEntityId } = entityIds;
 
 export async function requestTeamPinReset(formData) {
-  const activeDataBackend = resolveDataBackend();
   const leagueId = formData.get('leagueId');
   const access = formData.get('access') || '';
-  
-  if (activeDataBackend !== DATA_BACKENDS.SUPABASE) {
-    redirect(`/player/login/forgot-pin?leagueId=${leagueId}&access=${access}&error=config`);
-  }
-
   const teamId = normalizeEntityId(formData.get('teamId'));
   const email = String(formData.get('email') || '').trim().toLowerCase();
 

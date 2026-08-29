@@ -1,15 +1,12 @@
-import db from '../../lib/database';
 import {
   ShieldCheckIcon,
   FlagstickIcon,
 } from '../../components/icons/GolfIcons';
+import superAdminRepository from '../../lib/data/supabase/superAdminRepository';
+import { createAdminClient } from '../../lib/supabase/admin';
 
 export default async function SuperAdminDashboard() {
-  const { createAdminClient } = require('../../lib/supabase/admin');
-  const adminClient = createAdminClient();
-  const { getPlatformStatsAsync } = require('../../lib/services/superAdminService');
-
-  const coursesWithStats = await getPlatformStatsAsync(db, adminClient);
+  const coursesWithStats = await superAdminRepository.getPlatformStats(createAdminClient());
 
   const totalCourses = coursesWithStats.length;
   const totalLeagues = coursesWithStats.reduce((acc, c) => acc + c.leaguesCount, 0);

@@ -2,42 +2,30 @@ import Link from 'next/link';
 import BrandMark from '../../../../components/BrandMark';
 import styles from '../../../login/login.module.css';
 import { requestTeamPinReset } from './actions';
-import db from '../../../../lib/database';
-import dataBackend from '../../../../lib/data/backend';
 import entityIds from '../../../../lib/security/entityId';
 import publicAccessRepository from '../../../../lib/data/supabase/publicAccessRepository';
 import playerRepository from '../../../../lib/data/supabase/playerRepository';
 import { createAdminClient } from '../../../../lib/supabase/admin';
 
-const { DATA_BACKENDS, resolveDataBackend } = dataBackend;
 const { UUID_PATTERN, normalizeEntityId } = entityIds;
 const { validatePublicLeagueAccess } = publicAccessRepository;
 const { getActiveLeagueContext, listActiveLeagueTeams } = playerRepository;
 
 export default async function ForgotPinPage({ searchParams }) {
   const params = await searchParams;
-  const activeDataBackend = resolveDataBackend();
-  let leagueId = normalizeEntityId(params?.leagueId);
-
-  if (activeDataBackend === DATA_BACKENDS.SQLITE && (!leagueId || !Number.isSafeInteger(Number(leagueId))) && process.env.NODE_ENV !== 'production') {
-    leagueId = db.prepare("SELECT id FROM leagues WHERE status = 'active' ORDER BY id ASC LIMIT 1").get()?.id;
-  }
+  const leagueId = normalizeEntityId(params?.leagueId);
 
   let league = null;
   let teams = [];
   try {
-    if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-      if (leagueId && UUID_PATTERN.test(String(leagueId))) {
-        const adminClient = createAdminClient();
-        const allowed = adminClient && await validatePublicLeagueAccess(
-          adminClient, params?.access, { leagueId, purpose: 'player' }
-        );
-        const context = allowed ? await getActiveLeagueContext(adminClient, leagueId) : null;
-        league = context?.league || null;
-        teams = league ? await listActiveLeagueTeams(adminClient, leagueId) : [];
-      }
-    } else {
-      // Feature is strictly for Supabase but we still render teams if needed for UI
+    if (leagueId && UUID_PATTERN.test(String(leagueId))) {
+      const adminClient = createAdminClient();
+      const allowed = adminClient && await validatePublicLeagueAccess(
+        adminClient, params?.access, { leagueId, purpose: 'player' }
+      );
+      const context = allowed ? await getActiveLeagueContext(adminClient, leagueId) : null;
+      league = context?.league || null;
+      teams = league ? await listActiveLeagueTeams(adminClient, leagueId) : [];
     }
   } catch {
     league = null;

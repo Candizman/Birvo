@@ -1,8 +1,9 @@
-import db from '../../../lib/database';
 import { restoreLeague } from './actions';
 import { getAdminContext, COURSE_MANAGEMENT_ROLES, hasAdminRole } from '../../../lib/auth';
-import { TrashIcon, RefreshIcon, FlagstickIcon } from '../../../components/icons/GolfIcons';
+import { TrashIcon } from '../../../components/icons/GolfIcons';
 import EmptyState from '../../../components/ui/EmptyState';
+import trashRepository from '../../../lib/data/supabase/trashRepository';
+import { createAdminClient } from '../../../lib/supabase/admin';
 
 export default async function TrashBinPage() {
   const context = await getAdminContext();
@@ -11,12 +12,7 @@ export default async function TrashBinPage() {
     return <EmptyState eyebrow="Restricted area" title="Course manager access required" description="Only course owners and managers can restore archived leagues." primaryHref="/admin" primaryLabel="Back to overview" />;
   }
 
-  const courseId = context.courseId;
-  const { createAdminClient } = require('../../../lib/supabase/admin');
-  const adminClient = createAdminClient();
-  const { getTrashedLeaguesAsync } = require('../../../lib/services/trashService');
-
-  const trashedLeagues = await getTrashedLeaguesAsync(db, adminClient, courseId);
+  const trashedLeagues = await trashRepository.getTrashedLeagues(createAdminClient(), context.courseId);
 
   return (
     <div className="container" style={{ padding: 0, maxWidth: '1000px' }}>

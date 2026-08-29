@@ -1,15 +1,10 @@
-import db from '../../../lib/database';
 import { getAdminContext, COURSE_MANAGEMENT_ROLES, hasAdminRole } from '../../../lib/auth';
 import EmptyState from '../../../components/ui/EmptyState';
-import { getTVDisplayData } from '../../../lib/services/tvService';
-import { createPublicAccessToken, getPublicLinkVersion as getLocalPublicLinkVersion } from '../../../lib/publicAccess';
-import dataBackend from '../../../lib/data/backend';
+import { createPublicAccessToken } from '../../../lib/publicAccess';
 import publishingRepository from '../../../lib/data/supabase/publishingRepository';
 import publicAccessRepository from '../../../lib/data/supabase/publicAccessRepository';
 import { createClient } from '../../../lib/supabase/server';
 import PublishingControls from './PublishingControls';
-
-const { DATA_BACKENDS, resolveDataBackend } = dataBackend;
 
 export default async function PublishingPage() {
   const context = await getAdminContext();
@@ -19,17 +14,14 @@ export default async function PublishingPage() {
   }
   if (!context.leagueId) return <EmptyState title="No active league to publish" description="Create or select an active league before configuring Clubhouse TV." primaryHref="/admin/leagues" primaryLabel="Manage leagues" />;
 
-  const backend = resolveDataBackend();
-  const usesSupabase = backend === DATA_BACKENDS.SUPABASE;
-  const client = usesSupabase ? await createClient() : null;
-  const snapshot = usesSupabase
-    ? await publishingRepository.getPublishingManagementSnapshot(client, { courseId: context.courseId, leagueId: context.leagueId })
-    : getTVDisplayData(db, context.leagueId);
+  const client = await createClient();
+  const snapshot = await publishingRepository.getPublishingManagementSnapshot(client, {
+    courseId: context.courseId,
+    leagueId: context.leagueId,
+  });
   if (!snapshot) return <EmptyState title="Publishing workspace unavailable" description="The selected league is not active or does not belong to this course." primaryHref="/admin/leagues" primaryLabel="Select league" />;
 
-  const version = usesSupabase
-    ? await publicAccessRepository.getPublicLinkVersion(client, { leagueId: context.leagueId, purpose: 'tv' })
-    : getLocalPublicLinkVersion(db, context.leagueId, 'tv');
+  const version = await publicAccessRepository.getPublicLinkVersion(client, { leagueId: context.leagueId, purpose: 'tv' });
   const token = createPublicAccessToken({ leagueId: context.leagueId, purpose: 'tv', version });
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
   const tvUrl = token ? `${baseUrl}/tv/${context.leagueId}?access=${encodeURIComponent(token)}` : null;

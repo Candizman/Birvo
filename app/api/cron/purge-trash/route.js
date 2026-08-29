@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import db from '../../../../lib/database';
 import { createAdminClient } from '../../../../lib/supabase/admin';
-import { purgeExpiredTrashAsync } from '../../../../lib/services/trashService';
+import trashRepository from '../../../../lib/data/supabase/trashRepository';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,8 +13,11 @@ export async function GET(request) {
 
   try {
     const adminClient = createAdminClient();
-    const deletedCount = await purgeExpiredTrashAsync(db, adminClient);
-    
+    if (!adminClient) {
+      return NextResponse.json({ error: 'Service credentials are not configured.' }, { status: 503 });
+    }
+    const deletedCount = await trashRepository.purgeExpiredTrash(adminClient);
+
     return NextResponse.json({ success: true, purged: deletedCount });
   } catch (error) {
     console.error('Error during scheduled trash purge:', error);

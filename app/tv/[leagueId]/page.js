@@ -1,46 +1,31 @@
-import db from '../../../lib/database';
-import { getTVDisplayData } from '../../../lib/services/tvService';
 import TVView from './TVView';
 import Link from 'next/link';
-import { createPublicAccessToken, getPublicLinkVersion as getLocalPublicLinkVersion, hasPublicLeagueAccess } from '../../../lib/publicAccess';
-import dataBackend from '../../../lib/data/backend';
+import { createPublicAccessToken } from '../../../lib/publicAccess';
 import publishingRepository from '../../../lib/data/supabase/publishingRepository';
 import publicAccessRepository from '../../../lib/data/supabase/publicAccessRepository';
 import { createAdminClient } from '../../../lib/supabase/admin';
 import entityIds from '../../../lib/security/entityId';
 
-const { DATA_BACKENDS, resolveDataBackend } = dataBackend;
 const { UUID_PATTERN } = entityIds;
 
 export default async function TVDisplayPage({ params, searchParams }) {
   const { leagueId } = await params;
   const query = await searchParams;
-  const usesSupabase = resolveDataBackend() === DATA_BACKENDS.SUPABASE;
   const requestedLeagueId = String(leagueId || '').trim();
-  const id = usesSupabase
-    ? (UUID_PATTERN.test(requestedLeagueId) ? requestedLeagueId.toLowerCase() : null)
-    : Number.parseInt(leagueId, 10);
+  const id = UUID_PATTERN.test(requestedLeagueId) ? requestedLeagueId.toLowerCase() : null;
+
   let tvData = null;
   let playerAccessToken = null;
-  if (usesSupabase) {
-    if (id) {
-      const adminClient = createAdminClient();
-      const allowed = adminClient && await publicAccessRepository.validatePublicLeagueAccess(
-        adminClient, query?.access, { leagueId: id, purpose: 'tv' }
-      );
-      if (allowed) {
-        tvData = await publishingRepository.getPublicTVSnapshot(adminClient, id);
-        const version = await publicAccessRepository.getPublicLinkVersion(adminClient, { leagueId: id, purpose: 'player' });
-        playerAccessToken = createPublicAccessToken({ leagueId: id, purpose: 'player', version });
-      }
-    }
-  } else {
-    const allowed = Number.isInteger(id) && id > 0 && hasPublicLeagueAccess(query?.access, { leagueId: id, purpose: 'tv', db });
+
+  if (id) {
+    const adminClient = createAdminClient();
+    const allowed = adminClient && await publicAccessRepository.validatePublicLeagueAccess(
+      adminClient, query?.access, { leagueId: id, purpose: 'tv' }
+    );
     if (allowed) {
-      tvData = getTVDisplayData(db, id);
-      playerAccessToken = createPublicAccessToken({
-        leagueId: id, purpose: 'player', version: getLocalPublicLinkVersion(db, id, 'player'),
-      });
+      tvData = await publishingRepository.getPublicTVSnapshot(adminClient, id);
+      const version = await publicAccessRepository.getPublicLinkVersion(adminClient, { leagueId: id, purpose: 'player' });
+      playerAccessToken = createPublicAccessToken({ leagueId: id, purpose: 'player', version });
     }
   }
 
