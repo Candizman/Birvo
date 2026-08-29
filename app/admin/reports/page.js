@@ -9,13 +9,13 @@ export default async function ReportsAdminPage() {
 
   const { createAdminClient } = require('../../../lib/supabase/admin');
   const adminClient = createAdminClient();
-  const { getLeagueAsync } = require('../../../lib/services/leagueService');
-  const league = await getLeagueAsync(adminClient, context.leagueId);
+  const { getLeague } = require('../../../lib/services/leagueService');
+  const league = await getLeague(adminClient, context.leagueId);
 
-  const { getCourseHoleDifficultyStatsAsync, getHoleHeatmapAsync, getWeeklyDigestAsync } = require('../../../lib/services/reportService');
-  const difficultyStats = await getCourseHoleDifficultyStatsAsync(adminClient, context.courseId);
-  const heatmap = await getHoleHeatmapAsync(adminClient, context.courseId);
-  const weeklyDigest = await getWeeklyDigestAsync(adminClient, context.leagueId, context.currentWeek);
+  const { getCourseHoleDifficultyStats, getHoleHeatmap, getWeeklyDigest } = require('../../../lib/services/reportService');
+  const difficultyStats = await getCourseHoleDifficultyStats(adminClient, context.courseId);
+  const heatmap = await getHoleHeatmap(adminClient, context.courseId);
+  const weeklyDigest = await getWeeklyDigest(adminClient, context.leagueId, context.currentWeek);
 
   return (
     <ReportsView

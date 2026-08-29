@@ -11,8 +11,8 @@ export default async function PlayerLiveTrackerPage() {
   }
 
   const adminClient = createAdminClient();
-  const { getPlayerLiveScorecardAsync } = require('../../../lib/services/playerService');
-  const scorecard = await getPlayerLiveScorecardAsync(adminClient, session.teamId);
+  const { getPlayerLiveScorecard } = require('../../../lib/services/playerService');
+  const scorecard = await getPlayerLiveScorecard(adminClient, session.teamId);
   if (!scorecard) redirect('/player/login');
   
   const { team, match, courseHoles, existingScore, existingHoleDetails } = scorecard;

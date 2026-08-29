@@ -1,12 +1,26 @@
+/**
+ * Whole-application invariants that are cheaper to assert against the source
+ * than to reproduce at runtime: workspace selection, the shape of the health and
+ * QR routes, accessibility affordances, and — since the PostgreSQL cutover — the
+ * absence of any SQLite in the request path.
+ */
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { createDatabase } = require('../lib/database/createDatabase');
 const { selectLeagueForWorkspace } = require('../lib/services/workspaceSelectionService');
-const { getHealthSnapshot } = require('../lib/services/healthService');
 
 const read = relativePath => fs.readFileSync(path.join(process.cwd(), relativePath), 'utf8');
+
+function walk(dir, out = []) {
+  for (const entry of fs.readdirSync(path.join(process.cwd(), dir), { withFileTypes: true })) {
+    const rel = `${dir}/${entry.name}`;
+    if (entry.isDirectory()) walk(rel, out);
+    else if (/\.(js|jsx)$/.test(entry.name)) out.push(rel);
+  }
+  return out;
+}
 
 test('Platform shell and workspace safety', async t => {
   await t.test('league selection accepts only an ID present in the active course list', () => {
@@ -17,35 +31,28 @@ test('Platform shell and workspace safety', async t => {
     assert.equal(selectLeagueForWorkspace([], '22'), null);
   });
 
-  await t.test('league selection remains compatible with future UUID identifiers', () => {
+  await t.test('league selection works with UUID identifiers', () => {
     const leagues = [{ id: 'league-a' }, { id: 'league-b' }];
     assert.equal(selectLeagueForWorkspace(leagues, 'league-b').id, 'league-b');
   });
 
-  await t.test('health snapshot reports a ready database only at the expected schema', () => {
-    const db = createDatabase(':memory:');
-    db.pragma('user_version = 17');
-    assert.deepEqual(getHealthSnapshot(db), {
-      ready: true,
-      status: 'ok',
-      checks: { database: 'ok', schema: 'ok' },
-      schemaVersion: { current: 17, expected: 17 },
-    });
-    db.pragma('user_version = 15');
-    const stale = getHealthSnapshot(db);
-    assert.equal(stale.ready, false);
-    assert.equal(stale.checks.schema, 'mismatch');
-    db.close();
+  await t.test('no route, action, or service reaches SQLite', () => {
+    const offenders = [...walk('app'), ...walk('lib')]
+      .filter(file => {
+        const src = read(file);
+        return /require\(['"][^'"]*\/database['"]\)|from ['"][^'"]*\/database['"]/.test(src)
+          || /\bdb\.prepare\(/.test(src);
+      });
+    assert.deepEqual(offenders, [], 'SQLite must not appear in the request path');
   });
 
-  await t.test('health failures expose no database exception or tenant data', () => {
-    const snapshot = getHealthSnapshot({ prepare() { throw new Error('secret database path'); } });
-    assert.equal(snapshot.ready, false);
-    assert.equal(snapshot.checks.database, 'unavailable');
-    assert.doesNotMatch(JSON.stringify(snapshot), /secret|tenant|path/i);
+  await t.test('the data-backend feature flag is gone', () => {
+    const offenders = [...walk('app'), ...walk('lib')]
+      .filter(file => /resolveDataBackend|DATA_BACKENDS|BIRVO_DATA_BACKEND|BIRVO_SUPABASE_CUTOVER_COMPLETE/.test(read(file)));
+    assert.deepEqual(offenders, [], 'a flag with one valid value is dead weight');
   });
 
-  await t.test('health route is dynamic, no-store, and contains no tenant query', () => {
+  await t.test('health route is dynamic, no-store, and leaks no tenant identifiers', () => {
     const route = read('app/api/health/route.js');
     assert.match(route, /dynamic\s*=\s*'force-dynamic'/);
     assert.match(route, /no-store/);
@@ -53,11 +60,40 @@ test('Platform shell and workspace safety', async t => {
     assert.match(route, /getSupabaseHealthSnapshot/);
   });
 
-  await t.test('admin operational pages scope data to the selected league', () => {
-    assert.match(read('lib/services/dashboardService.js'), /WHERE id = \? AND course_id = \?/);
-    assert.match(read('lib/services/dashboardService.js'), /WHERE id = \? AND course_id = \? AND status = \?/);
-    assert.match(read('lib/services/handicapService.js'), /WHERE t\.league_id = \?/);
-    assert.match(read('lib/services/correctionsService.js'), /l\.id=\?/);
+  await t.test('QR generation stays on the Birvo server', () => {
+    const route = read('app/api/qr/route.js');
+    assert.match(route, /QRCode\.toBuffer/);
+    assert.match(route, /private, no-store/);
+    assert.doesNotMatch(route, /api\.qrserver\.com|quickchart\.io/i);
+    assert.match(route, /validatePublicLeagueAccess/, 'the QR link is gated by a signed public token');
+  });
+
+  await t.test('the tenant foundation migration enables RLS and installs the cross-tenant guards', () => {
+    const sql = read('supabase/migrations/202608240001_birvo_tenant_foundation.sql');
+    for (const table of ['courses', 'course_memberships', 'course_invitations', 'leagues', 'teams', 'matches', 'scores', 'audit_events', 'roster_imports']) {
+      assert.match(
+        sql,
+        new RegExp(`alter table public\\.${table} enable row level security|array\\[[^\\]]*'${table}'`, 'i'),
+        table
+      );
+    }
+    assert.match(sql, /ensure_tenant_consistency/);
+    assert.match(sql, /prevent_locked_score_change/);
+    assert.match(sql, /accept_course_invitation/);
+    assert.match(sql, /revoke all on public/);
+  });
+
+  await t.test('every function granted to anon or authenticated is re-granted deliberately', () => {
+    const lockdown = read('supabase/migrations/202608290001_birvo_function_privilege_lockdown.sql');
+    assert.match(lockdown, /revoke execute on all functions in schema public from public, anon, authenticated/);
+    // The service-role-only operations must never be granted to a browser key.
+    for (const fn of ['trash_league', 'purge_expired_trash', 'resolve_score', 'execute_team_pin_reset', 'adjust_handicap_manually']) {
+      assert.doesNotMatch(
+        lockdown,
+        new RegExp(`grant execute on function public\\.${fn}\\([^)]*\\) to authenticated`),
+        `${fn} is server-mediated only`
+      );
+    }
   });
 
   await t.test('critical route segments provide loading and recoverable error UI', () => {

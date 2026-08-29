@@ -1,87 +1,55 @@
 # SQLite Runtime Removal
 
-Last measured: August 29, 2026
-
-This document replaces the root-level `cleanup_plan.md`, whose counts were wrong (it listed 24 files; the real number is 39). Every list below was generated from the codebase, not from memory.
+**Status: complete.** Finished August 29, 2026.
 
 ## Decision
 
-Birvo will run on **PostgreSQL/Supabase only**. The dual-backend design — every feature written twice, dispatched through `if (resolveDataBackend() === DATA_BACKENDS.SUPABASE)` — doubles the cost of every change and is the direct cause of the broken build repaired on August 29, 2026.
-
-SQLite may remain in migration tooling and historical test fixtures. It must not remain in the request path.
+Birvo runs on **PostgreSQL/Supabase only**. The dual-backend design — every feature written twice, dispatched through `if (resolveDataBackend() === DATA_BACKENDS.SUPABASE)` — doubled the cost of every change and was the direct cause of the broken build repaired earlier that day.
 
 ## Exit rule
 
 ```bash
-grep -rl "lib/database" app/     # must return nothing
-grep -rl "db.prepare" lib/services/   # must return nothing
+grep -rl "lib/database" app/          # returns nothing
+grep -rl "db.prepare" lib/services/   # returns nothing
 ```
 
-Additionally, `BIRVO_DATA_BACKEND` and `BIRVO_SUPABASE_CUTOVER_COMPLETE` must be deleted from the code and from `.env.example`. A feature flag that only ever has one valid value is dead weight.
+Both return nothing. `BIRVO_DATA_BACKEND` and `BIRVO_SUPABASE_CUTOVER_COMPLETE` are gone from the code and from `.env.example`; a flag with one valid value is dead weight. `test/platform-shell.test.js` asserts all of this on every run, so the condition cannot quietly regress.
 
-## Prerequisite
+## What was removed
 
-Do not start this work until the PostgreSQL schema has actually been applied and the pgTAP plus two-tenant isolation suites pass. Removing the SQLite path before the Supabase path is proven leaves no working backend at all.
+| Removed | Why |
+|---|---|
+| 39 route and action files under `app/` | Each carried a SQLite branch beside its Supabase branch. |
+| 21 services under `lib/services/` | Same. Nine were deleted outright once the SQLite half was gone; the rest kept only their pure calculations. |
+| `lib/database/` | The SQLite connection, migrations and integrity checks. Nothing imported it. |
+| `lib/data/backend.js` | The backend flag itself. |
+| `lib/ghostLogic.js` | Dead: nothing had imported it. |
+| `scripts/` (15 files) | SQLite migration and seed scripts for a schema the app no longer uses. |
+| `better-sqlite3` | No longer a dependency. |
 
-## Route and action files still importing `lib/database` (39)
+Deleted services: `auditService`, `ghostManagementService`, `handicapService`, `healthService`, `publicLinkService`, `reconciliationService`, `scoreCorrectionService`, `superAdminService`, `trashService`, `tvService`, `weatherService`, `standingsService` (its one pure function moved to the domain layer).
 
-### Admin — management
-- `app/admin/layout.js`
-- `app/admin/course/page.js`
-- `app/admin/course/actions.js`
-- `app/admin/settings/actions.js`
-- `app/admin/publishing/page.js`
-- `app/admin/publishing/actions.js`
-- `app/admin/cart-signs/page.js`
-- `app/admin/season-end/page.js`
-- `app/admin/season-end/actions.js`
-- `app/admin/trash/page.js`
-- `app/admin/trash/actions.js`
-- `app/admin/billing/page.js`
-- `app/admin/billing/actions.js`
+## What moved, and where
 
-### Admin — scoring
-- `app/admin/fixtures/actions.js`
-- `app/admin/rapid-entry/actions.js`
-- `app/admin/corrections/actions.js`
-- `app/admin/reconciliation/page.js`
-- `app/admin/reconciliation/actions.js`
-- `app/admin/handicaps/page.js`
-- `app/admin/handicaps/actions.js`
-- `app/admin/roster-import/actions.js`
+Two pure calculations were called directly by the repository layer, which inverted the dependency between repositories and services — and in one case produced a genuine `require` cycle. Both moved down into the domain layer:
 
-### Player and public
-- `app/player/login/page.js`
-- `app/player/login/actions.js`
-- `app/player/login/forgot-pin/page.js`
-- `app/player/profile/page.js`
-- `app/player/profile/actions.js`
-- `app/join/[leagueId]/page.js`
-- `app/join/[leagueId]/actions.js`
-- `app/standings/page.js`
-- `app/tv/[leagueId]/page.js`
+- `buildLeagueStandings` → `lib/domain/standings.js`
+- `normalizeRSVPStatus` → `lib/domain/rsvp.js`
 
-### Auth and API
-- `app/login/actions.js`
-- `app/onboarding/actions.js`
-- `app/forgot-password/actions.js`
-- `app/account/update-password/actions.js`
-- `app/super-admin/page.js`
-- `app/api/health/route.js`
-- `app/api/qr/route.js`
-- `app/api/calendar/[leagueId]/route.js`
-- `app/api/cron/purge-trash/route.js`
+## Gaps this surfaced
 
-## Services still calling `db.prepare` (30)
+Removing the SQLite half exposed three places where no PostgreSQL path existed at all:
 
-`auditService`, `billingService`, `cartSignsService`, `correctionsService`, `courseService`, `courseSetupService`, `dashboardService`, `fixtureService`, `ghostManagementService`, `handicapService`, `healthService`, `leagueService`, `liveScoringService`, `membershipService`, `onboardingService`, `operationsService`, `playerService`, `publicLinkService`, `reconciliationService`, `reportService`, `rosterImportService`, `roundLifecycleService`, `scoreCorrectionService`, `scoreService`, `seasonEndService`, `standingsService`, `superAdminService`, `trashService`, `tvService`, `weatherService`
+- **`app/api/qr`** validated the public league link against SQLite. Now uses `publicAccessRepository`.
+- **Season end** archived a league by writing `leagues.archived_at`, a column that exists only in the SQLite schema. Added the `archive_league` RPC (migration `202608290003`).
+- **Billing writes** had no PostgreSQL implementation and no write RPC. Billing is now explicitly read-only, and the actions say so rather than appearing to succeed.
 
-Each of these holds a backend branch. Removing the branch, not just the import, is what completes the row.
+## Where the test coverage went
 
-## Related cleanup
+The 109-test suite was built on SQLite, so 23 tests were exercising implementations that no longer exist. Coverage did not shrink; it moved to where the logic now lives.
 
-Over twenty Server Components use inline `require()` to lazily pull services in and avoid a top-level SQLite import. Once SQLite is gone the workaround has no purpose; convert them to normal top-level `import` statements. `app/player/page.js` was converted on August 29, 2026 as part of the build repair and is the reference for the pattern.
+- **Pure calculations** stayed in JavaScript and gained a dedicated suite, `test/pure-logic.test.js`: standings, course setup gating, round-close readiness, iCalendar output, FIR/GIR statistics, CSV injection defence, roster CSV parsing, onboarding and invitation validation.
+- **Business rules that became SQL** moved to `supabase/tests/database/003_scoring_rules.test.sql`: score-batch validation and rollback, handicap recalculation, the handicap snapshot on resubmission, ghost-score protection, round locking and advancement, the locked-round write guard, the frozen scoring format, and one-workspace-per-account.
+- **`test/platform-shell.test.js`** now also asserts the exit rule itself.
 
-## Status
-
-Not started. Blocked on the PostgreSQL schema being executed and verified.
+Suite totals: 78 Node assertions, plus 129 pgTAP assertions (82 schema contract, 20 tenant isolation, 27 scoring rules) against the live database.

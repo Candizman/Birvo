@@ -10,8 +10,8 @@ export default async function RapidEntry() {
     return <div style={{padding:'2rem', color:'white'}}>Sign in to continue.</div>;
   }
 
-  const { getScoringWorkspaceAsync } = require('../../../lib/services/courseSetupService');
-  const readiness = await getScoringWorkspaceAsync(await createClient(), {
+  const { getScoringWorkspace } = require('../../../lib/services/courseSetupService');
+  const readiness = await getScoringWorkspace(await createClient(), {
     courseId: context.courseId,
     leagueId: context.leagueId,
     weekNumber: context.currentWeek,

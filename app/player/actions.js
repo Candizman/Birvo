@@ -15,8 +15,8 @@ export async function submitPlayerScore(formData) {
 
   try {
     const adminClient = createAdminClient();
-    const { submitPlayerGrossScoreAsync } = require('../../lib/services/scoreService');
-    await submitPlayerGrossScoreAsync(adminClient, teamId, grossScore);
+    const { submitPlayerGrossScore } = require('../../lib/services/scoreService');
+    await submitPlayerGrossScore(adminClient, teamId, grossScore);
     revalidatePath('/player');
     return { success: true };
   } catch (error) {

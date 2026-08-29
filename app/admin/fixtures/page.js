@@ -1,6 +1,7 @@
 import { getAdminContext } from '../../../lib/auth';
 import FixturesView from './FixturesView';
 import { createClient } from '../../../lib/supabase/server';
+import { getFixtureManagementSnapshot } from '../../../lib/services/fixtureService';
 
 export default async function FixturesAdminPage() {
   const context = await getAdminContext();
@@ -8,8 +9,7 @@ export default async function FixturesAdminPage() {
     return <div style={{ padding: '2rem', color: 'white' }}>Select or create a league to continue.</div>;
   }
 
-  const { getFixtureManagementSnapshotAsync } = require('../../../lib/services/fixtureService');
-  const snapshot = await getFixtureManagementSnapshotAsync(await createClient(), {
+  const snapshot = await getFixtureManagementSnapshot(await createClient(), {
     courseId: context.courseId,
     leagueId: context.leagueId,
     weekNumber: context.currentWeek,

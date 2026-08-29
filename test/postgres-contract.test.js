@@ -2,11 +2,6 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const {
-  DATA_BACKENDS,
-  DataBackendConfigurationError,
-  resolveDataBackend,
-} = require('../lib/data/backend');
 const workspaceRepository = require('../lib/data/supabase/workspaceRepository');
 const operationsRepository = require('../lib/data/supabase/operationsRepository');
 const publicAccessRepository = require('../lib/data/supabase/publicAccessRepository');
@@ -144,34 +139,6 @@ test('PostgreSQL production contract', async t => {
     assert.match(sql, /where public\.scores\.is_ghost=true/i);
     assert.match(sql, /A submitted scorecard cannot be replaced with a ghost score/i);
     assert.match(sql, /schema_version=4/i);
-  });
-
-  await t.test('production backend selection fails closed until the cutover gate is complete', () => {
-    assert.equal(resolveDataBackend({ NODE_ENV: 'test' }), DATA_BACKENDS.SQLITE);
-    assert.throws(() => resolveDataBackend({ NODE_ENV: 'production' }), DataBackendConfigurationError);
-    assert.throws(
-      () => resolveDataBackend({ NODE_ENV: 'production', BIRVO_DATA_BACKEND: 'sqlite' }),
-      /restricted to local development/i
-    );
-    assert.throws(
-      () => resolveDataBackend({ NODE_ENV: 'production', BIRVO_DATA_BACKEND: 'supabase' }),
-      /requires NEXT_PUBLIC_SUPABASE_URL/i
-    );
-    assert.throws(
-      () => resolveDataBackend({
-        NODE_ENV: 'production', BIRVO_DATA_BACKEND: 'supabase',
-        NEXT_PUBLIC_SUPABASE_URL: 'https://project.supabase.co', NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon',
-      }),
-      /cutover gate is closed/i
-    );
-    assert.equal(resolveDataBackend({
-      NODE_ENV: 'production', BIRVO_DATA_BACKEND: 'supabase',
-      NEXT_PUBLIC_SUPABASE_URL: 'https://project.supabase.co', NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon',
-    }, { requireCutover: false }), DATA_BACKENDS.SUPABASE);
-    assert.equal(resolveDataBackend({
-      NODE_ENV: 'production', BIRVO_DATA_BACKEND: 'supabase', BIRVO_SUPABASE_CUTOVER_COMPLETE: 'true',
-      NEXT_PUBLIC_SUPABASE_URL: 'https://project.supabase.co', NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon',
-    }), DATA_BACKENDS.SUPABASE);
   });
 
   await t.test('workspace reads are tenant scoped and preserve UUID identifiers', async () => {
@@ -648,7 +615,6 @@ test('PostgreSQL production contract', async t => {
       },
     };
     const result = await persistentRateLimit.checkDataRateLimit({
-      backend: DATA_BACKENDS.SUPABASE,
       adminClient,
       scope: 'admin_login',
       subject: '203.0.113.7:Owner@Example.com',

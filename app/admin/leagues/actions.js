@@ -3,7 +3,7 @@
 import { requireAdminRole, COURSE_MANAGEMENT_ROLES } from '../../../lib/auth';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '../../../lib/supabase/server';
-import { createLeagueAsync, updateLeagueFormatAsync, generatePlayoffBracketAsync } from '../../../lib/services/operationsService';
+import operationsService from '../../../lib/services/operationsService';
 
 const ALLOWED_FORMATS = new Set(['stroke_play', 'match_play', 'stableford', 'scramble', 'skins', 'nassau']);
 
@@ -19,7 +19,7 @@ export async function createLeague(formData) {
   if (!ALLOWED_FORMATS.has(gameFormat)) return { error: 'Invalid scoring format.' };
   if (!Number.isInteger(seasonLengthWeeks) || seasonLengthWeeks < 1 || seasonLengthWeeks > 52) return { error: 'Season length must be between 1 and 52 weeks.' };
 
-  await createLeagueAsync(await createClient(), courseId, leagueName, gameFormat, seasonLengthWeeks);
+  await operationsService.createLeague(await createClient(), courseId, leagueName, gameFormat, seasonLengthWeeks);
 
   revalidatePath('/admin');
   revalidatePath('/admin/leagues');
@@ -33,7 +33,7 @@ export async function updateLeagueFormat(formData) {
   const gameFormat = String(formData.get('gameFormat') || '');
   if (!ALLOWED_FORMATS.has(gameFormat)) return { error: 'Invalid scoring format.' };
   
-  await updateLeagueFormatAsync(await createClient(), context.courseId, leagueId, gameFormat);
+  await operationsService.updateLeagueFormat(await createClient(), context.courseId, leagueId, gameFormat);
 
   revalidatePath('/admin/leagues');
   revalidatePath('/admin');
@@ -47,7 +47,7 @@ export async function generatePlayoffAction(formData) {
   const bracketSize = Number(formData.get('bracketSize')) || 4;
   if (![4, 8, 16].includes(bracketSize)) return { error: 'Invalid playoff bracket size.' };
 
-  const result = await generatePlayoffBracketAsync(await createClient(), context.courseId, leagueId, bracketSize);
+  const result = await operationsService.generateLeaguePlayoffBracket(await createClient(), context.courseId, leagueId, bracketSize);
   if (result.error) return result;
 
   revalidatePath('/admin/leagues');

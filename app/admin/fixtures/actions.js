@@ -5,10 +5,8 @@ import {
   COURSE_MANAGEMENT_ROLES,
   SCORING_OPERATION_ROLES,
 } from '../../../lib/auth';
-import {
-  generateRoundRobinMatchups,
-  normalizeRSVPStatus,
-} from '../../../lib/services/fixtureService';
+import { generateRoundRobinMatchups } from '../../../lib/services/fixtureService';
+import { normalizeRSVPStatus, isValidRSVPStatus } from '../../../lib/domain/rsvp';
 import { revalidatePath } from 'next/cache';
 import leagueRepository from '../../../lib/data/supabase/leagueRepository';
 import operationsRepository from '../../../lib/data/supabase/operationsRepository';
@@ -74,7 +72,7 @@ export async function updateRSVPAction(previousState, formData) {
     const status = normalizeRSVPStatus(String(formData.get('status') || ''));
     const note = String(formData.get('note') || '').trim();
     if (!teamId) return { error: 'Select a team.' };
-    if (!['attending', 'not_attending', 'maybe', 'needs_sub', 'unknown'].includes(status)) return { error: 'Invalid RSVP status.' };
+    if (!isValidRSVPStatus(status)) return { error: 'Invalid RSVP status.' };
     if (note.length > 500) return { error: 'RSVP note cannot exceed 500 characters.' };
 
     await operationsRepository.saveTeamRsvp(await createClient(), {

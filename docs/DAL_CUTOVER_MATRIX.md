@@ -37,6 +37,12 @@ This matrix is the production gate for removing the local SQLite runtime. A row 
 
 ## Open runtime consumers
 
+**Closed on August 29, 2026.** All three rows below are done: the schema is executed and verified, the SQLite runtime is gone, and the test suite runs against the code that ships. See [SQLite runtime removal](./SQLITE_REMOVAL.md) for what was deleted and where the coverage moved.
+
+The record of the earlier false claim is kept below, unedited, because the gap between what this document asserted and what was true is the thing worth remembering.
+
+---
+
 Corrected on August 29, 2026. This section previously claimed "All complete." That claim was false and is the reason this correction is recorded rather than silently edited.
 
 Each slice above is marked "Code complete" because a Supabase repository and RPC were written for it. That is not the same as the SQLite runtime being removed, and it is not the same as the code having run. Two facts measured directly from the workspace:

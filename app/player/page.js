@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { getPlayerSession } from '../../lib/auth';
 import { createAdminClient } from '../../lib/supabase/admin';
-import { getPlayerHomeAsync } from '../../lib/services/playerService';
+import { getPlayerHome } from '../../lib/services/playerService';
 import {
   FlagstickIcon,
   TrophyIcon,
@@ -24,7 +24,7 @@ export default async function PlayerMobile() {
 
   const teamId = session.teamId;
   const adminClient = createAdminClient();
-  const home = await getPlayerHomeAsync(adminClient, teamId);
+  const home = await getPlayerHome(adminClient, teamId);
   if (!home) redirect('/player/login');
 
   const { team, league, course, opponentName, teamSeasonData, fixture, startingHole } = home;

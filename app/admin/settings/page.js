@@ -21,8 +21,8 @@ export default async function SettingsPage() {
   }
 
   const courseId = context.courseId;
-  const { getLeagueOperationsAsync } = require('../../../lib/services/dashboardService');
-  const operations = await getLeagueOperationsAsync(await createClient(), courseId, context.leagueId, context.currentWeek);
+  const { getLeagueOperations } = require('../../../lib/services/dashboardService');
+  const operations = await getLeagueOperations(await createClient(), courseId, context.leagueId, context.currentWeek);
   
   const league = operations.league;
   if (!league) {

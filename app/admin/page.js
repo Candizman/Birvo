@@ -50,8 +50,8 @@ export default async function AdminDashboard() {
   }
 
   const supabase = await createClient();
-  const { getAdminDashboardAsync } = require('../../lib/services/dashboardService');
-  const dashboardData = await getAdminDashboardAsync(supabase, courseId, context.leagueId);
+  const { getAdminDashboard } = require('../../lib/services/dashboardService');
+  const dashboardData = await getAdminDashboard(supabase, courseId, context.leagueId);
   const course = dashboardData.course;
 
   if (!course) {

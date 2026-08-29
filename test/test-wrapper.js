@@ -1,33 +1,29 @@
-const fs = require('fs');
-const path = require('path');
-const { spawnSync } = require('child_process');
+/**
+ * Runs the Node test suite.
+ *
+ * This used to also guard birvo.db against accidental writes during tests. That
+ * check is gone with the SQLite runtime: nothing under app/ or lib/ can open a
+ * SQLite file any more, and test/platform-shell.test.js asserts that directly.
+ */
 
-const dbPath = path.join(process.cwd(), 'birvo.db');
-const getDbState = () => {
-  if (fs.existsSync(dbPath)) {
-    const stat = fs.statSync(dbPath);
-    // return hash/size/mtime string to represent state
-    return `${stat.size}-${stat.mtimeMs}`;
-  }
-  return 'not_exists';
-};
+const fs = require('node:fs');
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 
-const stateBefore = getDbState();
-console.log('--- TEST ISOLATION WRAPPER ---');
-console.log('DB State Before:', stateBefore);
+const testDir = path.join(__dirname);
+const files = fs.readdirSync(testDir)
+  .filter(name => name.endsWith('.test.js'))
+  .sort()
+  .map(name => path.join('test', name));
 
-const result = spawnSync('node', ['--test', 'test/db.test.js', 'test/domain.test.js', 'test/e2e-simulation.test.js', 'test/security.test.js', 'test/onboarding.test.js', 'test/production-readiness.test.js', 'test/platform-shell.test.js', 'test/postgres-contract.test.js'], {
-  stdio: 'inherit',
-  env: { ...process.env, NODE_ENV: 'test' }
-});
-
-const stateAfter = getDbState();
-console.log('DB State After:', stateAfter);
-
-if (stateBefore !== stateAfter) {
-  console.error('FAIL: Test isolation broken! birvo.db was modified during tests.');
+if (files.length === 0) {
+  console.error('No test files found in test/.');
   process.exit(1);
 }
 
-console.log('PASS: birvo.db was not touched.');
-process.exit(result.status);
+const result = spawnSync('node', ['--test', ...files], {
+  stdio: 'inherit',
+  env: { ...process.env, NODE_ENV: 'test' },
+});
+
+process.exit(result.status ?? 1);

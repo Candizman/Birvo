@@ -17,14 +17,14 @@ export async function GET(request, { params }) {
 
   const { createAdminClient } = require('../../../../../lib/supabase/admin');
   const adminClient = createAdminClient();
-  const { getLeagueAsync } = require('../../../../../lib/services/leagueService');
+  const { getLeague } = require('../../../../../lib/services/leagueService');
 
-  const league = await getLeagueAsync(adminClient, id);
+  const league = await getLeague(adminClient, id);
   if (!league || league.course_id !== context.courseId) {
     return NextResponse.json({ error: 'League not found' }, { status: 404 });
   }
 
-  const csv = await require('../../../../../lib/services/reportService').generateCSVExportAsync(adminClient, id);
+  const csv = await generateCSVExport(adminClient, id);
 
   return new Response(csv, {
     status: 200,

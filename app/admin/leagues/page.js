@@ -25,8 +25,8 @@ export default async function LeaguesPage() {
   }
 
   const courseId = context.courseId;
-  const { listCourseLeaguesAsync } = require('../../../lib/services/leagueService');
-  const leagues = await listCourseLeaguesAsync(await createClient(), courseId);
+  const { listCourseLeagues } = require('../../../lib/services/leagueService');
+  const leagues = await listCourseLeagues(await createClient(), courseId);
 
   return (
     <div className="container" style={{ padding: 0, maxWidth: '100%' }}>
