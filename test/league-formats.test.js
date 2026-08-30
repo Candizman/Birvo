@@ -253,6 +253,25 @@ test('Standings carry the format through to the caller', async t => {
     assert.strictEqual(standings.summary.format.label, 'Stableford');
   });
 
+  // The public standings page read summary.totalWeeks, which the summary has
+  // never had, and quietly printed "1 /" with a blank where the season length
+  // belonged. Nothing failed; the number was simply undefined. This pins the
+  // shape so a renamed field breaks a test rather than a customer's page.
+  await t.test('the summary carries exactly the fields the pages read', () => {
+    const standings = buildLeagueStandings({
+      league, teams, matches, scores, holeScores, courseHoles: HOLES,
+    });
+    for (const field of [
+      'leader', 'completedWeeks', 'scheduledWeeks', 'seasonLengthWeeks',
+      'currentWeek', 'leagueAvgNet', 'format',
+    ]) {
+      assert.ok(field in standings.summary, `summary is missing ${field}`);
+    }
+    assert.strictEqual(standings.summary.seasonLengthWeeks, 1);
+    assert.ok(!('totalWeeks' in standings.summary),
+      'totalWeeks is not a field: a page reading it would render a blank');
+  });
+
   await t.test('a stroke play league reports no gap at all', () => {
     const standings = buildLeagueStandings({
       league: { ...league, game_format: 'stroke_play' },

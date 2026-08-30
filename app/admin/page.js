@@ -10,6 +10,8 @@ import StatCard from '../../components/ui/StatCard';
 import RankBadge from '../../components/ui/RankBadge';
 import ScoreFeed from '../../components/ui/ScoreFeed';
 import AlertBanner from '../../components/ui/AlertBanner';
+import SideGamePanel from '../../components/league/SideGamePanel';
+import { weekFormatColumn } from '../../components/league/weekFormatColumn';
 import {
   FlagstickIcon,
   TrophyIcon,
@@ -91,6 +93,7 @@ export default async function AdminDashboard() {
 
   const currentWeekData = weeklyResultsList.find(w => w.weekNumber === weekNumber);
   const weekResults = currentWeekData ? currentWeekData.results : [];
+  const formatColumn = weekFormatColumn(currentWeekData?.scoringBasis);
   const scoresEnteredCount = currentWeekData ? currentWeekData.scoresEnteredCount : 0;
   const completionPct = totalActiveTeams > 0 ? Math.round((scoresEnteredCount / totalActiveTeams) * 100) : 0;
 
@@ -236,6 +239,7 @@ export default async function AdminDashboard() {
                   <th>Team</th>
                   <th style={{ textAlign: 'center' }}>Gross</th>
                   <th style={{ textAlign: 'center' }}>Net</th>
+                  {formatColumn && <th style={{ textAlign: 'center' }}>{formatColumn.header}</th>}
                   <th style={{ textAlign: 'right' }}>Points</th>
                 </tr>
               </thead>
@@ -243,9 +247,22 @@ export default async function AdminDashboard() {
                 {[...weekResults].sort((a, b) => (b.pointsEarned || 0) - (a.pointsEarned || 0)).map((team, idx) => (
                   <tr key={team.id} className={idx % 2 === 0 ? styles.standingsTableRowEven : styles.standingsTableRow}>
                     <td style={{ padding: '12px 10px' }}><RankBadge rank={team.rank} /></td>
-                    <td className={styles.teamName} style={{ padding: '12px 10px' }}>{team.name}</td>
+                    <td className={styles.teamName} style={{ padding: '12px 10px' }}>
+                      {team.name}
+                      {team.playedBySubstitute && (
+                        <span title="Played by a substitute: the round scores for the league but is left out of this team's handicap"
+                          style={{ marginLeft: 6, padding: '2px 6px', borderRadius: 999, background: '#fffbeb', color: '#b45309', fontSize: '.68rem', fontWeight: 800 }}>
+                          SUB
+                        </span>
+                      )}
+                    </td>
                     <td className={styles.grossScore} style={{ padding: '12px 10px' }}>{team.currentGross}</td>
                     <td className={styles.netScore} style={{ padding: '12px 10px' }}>{team.netScore !== null ? team.netScore.toFixed(1) : '-'}</td>
+                    {formatColumn && (
+                      <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 700 }}>
+                        {formatColumn.value(team)}
+                      </td>
+                    )}
                     <td className={styles.points} style={{ padding: '12px 10px' }}>
                       {team.pointsEarned.toFixed(1)} <span className={styles.pointsUnit}>PTS</span>
                     </td>
@@ -258,6 +275,8 @@ export default async function AdminDashboard() {
               No scores have been entered for this week yet.
             </div>
           )}
+
+          <SideGamePanel sideGame={currentWeekData?.sideGame} />
         </div>
 
         {/* Recent Score Activity & Attestation Feed */}
