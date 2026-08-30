@@ -177,24 +177,24 @@ begin
   return coalesce(league_count, 0) + coalesce(course_count, 0);
 end $fn$;
 
--- Reached only through a server route that has already established the caller is
--- signed in and owns the workspace, in keeping with the other trash operations.
-revoke execute on function public.close_course(uuid) from public, anon, authenticated;
-revoke execute on function public.reopen_course(uuid) from public, anon, authenticated;
-revoke execute on function public.purge_course(uuid) from public, anon, authenticated;
+-- These follow save_score_batch and archive_league rather than trash_league:
+-- reachable by a signed-in user, with the function enforcing the owner check
+-- itself instead of trusting a route to have done it.
+--
+-- The first cut of this migration granted them to service_role alone, the way
+-- trash_league is granted, and that made them unusable -- has_course_role reads
+-- auth.uid(), a service_role call has none, and every call was refused.
+-- trash_league gets away with that grant only because it has no role check at
+-- all and leans entirely on its route.
+revoke execute on function public.close_course(uuid) from public, anon;
+revoke execute on function public.reopen_course(uuid) from public, anon;
+revoke execute on function public.purge_course(uuid) from public, anon;
+grant execute on function public.close_course(uuid) to authenticated;
+grant execute on function public.reopen_course(uuid) to authenticated;
+grant execute on function public.purge_course(uuid) to authenticated;
 
 update public.app_metadata set schema_version=24,
   migration_name='202608300009_birvo_a_course_can_be_closed_and_purged',updated_at=now()
   where key='database';
 
 commit;
-
--- Applied separately after the first attempt proved unusable: these carry their
--- own has_course_role check, which reads auth.uid(). Granting them to
--- service_role alone meant the route had no signed-in user to check against and
--- every call was refused. They follow save_score_batch and archive_league
--- instead -- reachable by a signed-in user, with the function enforcing the role
--- itself rather than trusting the caller to have done it.
-grant execute on function public.close_course(uuid) to authenticated;
-grant execute on function public.reopen_course(uuid) to authenticated;
-grant execute on function public.purge_course(uuid) to authenticated;
