@@ -7,6 +7,18 @@ import {
   FlagstickIcon,
 } from '../../../components/icons/GolfIcons';
 import { createClient } from '../../../lib/supabase/server';
+import { listFormats } from '../../../lib/domain/leagueFormats';
+
+// One list, so the dropdown cannot drift from what standings actually does with
+// the value. Formats scored hole by hole say so: a course entering paper cards
+// records a total and nothing else, and should know that before choosing one.
+const FORMAT_OPTIONS = listFormats().map(format => ({
+  value: format.value,
+  label: format.label,
+  longLabel: format.needsHoleScores
+    ? `${format.label} — needs hole-by-hole scores`
+    : format.label,
+}));
 
 function readBracket(value) {
   try {
@@ -76,12 +88,9 @@ export default async function LeaguesPage() {
           <div>
             <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--color-text-muted)', fontSize: '0.85rem', fontWeight: 600 }}>Game Scoring Format</label>
             <select name="gameFormat" style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)', background: 'rgba(0,0,0,0.5)', color: 'white', fontSize: '0.95rem' }}>
-              <option value="stroke_play">Stroke Play (Gross & Net)</option>
-              <option value="match_play">Match Play 1v1 (Hole-by-Hole)</option>
-              <option value="stableford">Stableford Point System</option>
-              <option value="scramble">Scramble (USGA Team Handicap)</option>
-              <option value="skins">Skins Game (Carry-over Pots)</option>
-              <option value="nassau">Nassau (Front / Back / Overall)</option>
+              {FORMAT_OPTIONS.map(format => (
+                <option key={format.value} value={format.value}>{format.longLabel}</option>
+              ))}
             </select>
           </div>
 
@@ -121,12 +130,9 @@ export default async function LeaguesPage() {
                       defaultValue={l.game_format || 'stroke_play'}
                       style={{ padding: '6px 12px', background: 'rgba(0,0,0,0.5)', border: '1px solid var(--color-border)', color: 'var(--color-primary)', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 600 }}
                     >
-                      <option value="stroke_play">Stroke Play</option>
-                      <option value="match_play">Match Play</option>
-                      <option value="stableford">Stableford</option>
-                      <option value="scramble">Scramble</option>
-                      <option value="skins">Skins</option>
-                      <option value="nassau">Nassau</option>
+                      {FORMAT_OPTIONS.map(format => (
+                        <option key={format.value} value={format.value}>{format.label}</option>
+                      ))}
                     </select>
                     <button type="submit" style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'rgba(255,255,255,0.06)', color: 'white', fontSize: '0.78rem', fontWeight: 750, cursor: 'pointer' }}>
                       Save format

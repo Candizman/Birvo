@@ -113,7 +113,7 @@ export default async function AdminDashboard() {
             {league.name}
           </h1>
           <p className={styles.leagueMeta}>
-            Week {weekNumber} of {indefiniteArticleForNumber(summary.seasonLengthWeeks)} {summary.seasonLengthWeeks}-week season • Format: <strong className={styles.leagueMetaStrong}>{league.game_format.replace('_', ' ')}</strong> • {totalActiveTeams} active teams
+            Week {weekNumber} of {indefiniteArticleForNumber(summary.seasonLengthWeeks)} {summary.seasonLengthWeeks}-week season • Format: <strong className={styles.leagueMetaStrong}>{summary.format.label}</strong> • {totalActiveTeams} active teams
           </p>
         </div>
 
@@ -180,6 +180,26 @@ export default async function AdminDashboard() {
           valueColor="#059669"
         />
       </div>
+
+      {/* ─── FORMAT NOT RUNNING ─────────────────────────────────────────────────── */}
+      {/* Scored as something other than what the league is set to, which the
+          league is entitled to be told rather than left to discover. */}
+      {summary.format.roundsMissingHoleScores.length > 0 && (
+        <div className={styles.alertSection}>
+          <AlertBanner
+            variant="warning"
+            actionHref="/admin/leagues"
+            actionLabel="Change the format →"
+          >
+            <strong>{summary.format.label} is scored hole by hole.</strong>{' '}
+            {summary.format.roundsMissingHoleScores.length === 1
+              ? `Week ${summary.format.roundsMissingHoleScores[0]} has`
+              : `Weeks ${summary.format.roundsMissingHoleScores.join(', ')} have`}{' '}
+            only a total score, so {summary.format.roundsMissingHoleScores.length === 1 ? 'it was' : 'they were'}{' '}
+            scored as net stroke play. Hole-by-hole scores arrive when players post their own cards.
+          </AlertBanner>
+        </div>
+      )}
 
       {/* ─── AUDIT & DISPUTE ALERTS ─────────────────────────────────────────────── */}
       {needsReviewCount > 0 && (

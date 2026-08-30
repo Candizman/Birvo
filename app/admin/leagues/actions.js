@@ -4,8 +4,11 @@ import { requireAdminRole, COURSE_MANAGEMENT_ROLES } from '../../../lib/auth';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '../../../lib/supabase/server';
 import operationsService from '../../../lib/services/operationsService';
+import { FORMATS } from '../../../lib/domain/leagueFormats';
 
-const ALLOWED_FORMATS = new Set(['stroke_play', 'match_play', 'stableford', 'scramble', 'skins', 'nassau']);
+// Derived from the format definitions so that a format the scoring layer does
+// not know about cannot be saved against a league.
+const ALLOWED_FORMATS = new Set(Object.keys(FORMATS));
 
 export async function createLeague(formData) {
   const context = await requireAdminRole(COURSE_MANAGEMENT_ROLES);
