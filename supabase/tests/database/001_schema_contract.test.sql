@@ -171,7 +171,7 @@ select ok(
 );
 select is(
   (select schema_version from public.app_metadata where key='database'),
-  15,
+  16,
   'database schema marker is at the expected version'
 );
 

@@ -7,7 +7,7 @@
 -- is where that coverage moved to.
 begin;
 set local search_path = public, extensions;
-select plan(30);
+select plan(31);
 
 -- ─── Fixture ────────────────────────────────────────────────────────────────
 insert into auth.users(
@@ -150,11 +150,28 @@ select throws_ok(
 );
 
 -- ─── Round locking ──────────────────────────────────────────────────────────
+-- Staff entry is its own attestation. A course running the paper workflow must be
+-- able to close a round without every player signing in, which is the whole point
+-- of the traditional mode.
+select is(
+  (select count(*)::integer from public.scores
+   where match_id='a2500000-0000-4000-8000-000000000001'
+     and attestation_status='approved'),
+  2,
+  'a card entered by course staff is recorded as approved, not left pending'
+);
+
+-- A player-submitted card still needs its opponent's attestation, and still
+-- blocks the lock until it has it.
+update public.scores set attestation_status='pending'
+  where match_id='a2500000-0000-4000-8000-000000000001'
+    and team_id='a2000000-0000-4000-8000-000000000002';
+
 select throws_ok(
   $$select public.lock_round_and_advance(
     'a0000000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000001',1)$$,
   'P0001','Scorecards still need attestation',
-  'a round cannot be locked while a card is unattested'
+  'an unattested player card still blocks the lock'
 );
 
 update public.scores set attestation_status='approved'
