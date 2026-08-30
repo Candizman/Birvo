@@ -7,7 +7,7 @@
 -- is where that coverage moved to.
 begin;
 set local search_path = public, extensions;
-select plan(58);
+select plan(64);
 
 -- ─── Fixture ────────────────────────────────────────────────────────────────
 insert into auth.users(
@@ -313,6 +313,30 @@ select throws_ok(
   'a substitute from another league cannot be borrowed, handicap and all'
 );
 
+-- ─── Closing and removing a workspace ───────────────────────────────────────
+-- protect_last_course_owner used to refuse the cascade from deleting a course,
+-- so no tenant could ever be removed. It now steps aside for a closed course and
+-- nowhere else.
+select throws_ok(
+  $$select public.purge_course('b0000000-0000-4000-8000-0000000000b1')$$,
+  'P0001','The workspace must be closed before it can be permanently removed',
+  'a workspace cannot be destroyed in a single step'
+);
+select lives_ok(
+  $$select public.close_course('b0000000-0000-4000-8000-0000000000b1')$$,
+  'the owner can close the workspace'
+);
+select lives_ok(
+  $$select public.purge_course('b0000000-0000-4000-8000-0000000000b1')$$,
+  'a closed workspace can be removed for good'
+);
+select is((select count(*)::integer from public.courses
+    where id='b0000000-0000-4000-8000-0000000000b1'), 0,
+  'the course is gone');
+select is((select count(*)::integer from public.scores
+    where course_id='b0000000-0000-4000-8000-0000000000b1'), 0,
+  'and the cascade took its scorecards with it');
+
 -- ─── Ghost scores ───────────────────────────────────────────────────────────
 select throws_ok(
   $$select public.apply_ghost_score(
@@ -397,6 +421,15 @@ select throws_ok(
 -- scoring functions and are revoked from every client role, so these run as the
 -- owner rather than as the signed-in course owner.
 reset role;
+
+-- The guard is relaxed for a purge and for nothing else: a course still open
+-- cannot be left without an owner.
+select throws_ok(
+  $$delete from public.course_memberships
+    where course_id='a0000000-0000-4000-8000-000000000001'$$,
+  'P0001','A course must always have an active owner',
+  'an open course still cannot lose its last owner'
+);
 
 select is(public.course_par('a0000000-0000-4000-8000-000000000001'), 72,
   'the seeded eighteen-hole layout has a par of 72');

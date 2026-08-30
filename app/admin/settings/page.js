@@ -1,4 +1,4 @@
-import { getAdminContext, COURSE_MANAGEMENT_ROLES, hasAdminRole } from '../../../lib/auth';
+import { getAdminContext, COURSE_MANAGEMENT_ROLES, COURSE_LIFECYCLE_ROLES, hasAdminRole } from '../../../lib/auth';
 import {
   SettingsIcon,
   CalendarIcon,
@@ -11,6 +11,7 @@ import EmptyState from '../../../components/ui/EmptyState';
 import { FinalizeRoundForm, RainoutForm } from './RoundOperations';
 import { createPublicAccessToken } from '../../../lib/publicAccess';
 import PublicLinkControls from './PublicLinkControls';
+import WorkspaceLifecycle from './WorkspaceLifecycle';
 import { createClient } from '../../../lib/supabase/server';
 
 export default async function SettingsPage() {
@@ -21,12 +22,37 @@ export default async function SettingsPage() {
   }
 
   const courseId = context.courseId;
+  const supabase = await createClient();
   const { getLeagueOperations } = require('../../../lib/services/dashboardService');
-  const operations = await getLeagueOperations(await createClient(), courseId, context.leagueId, context.currentWeek);
-  
+  const operations = await getLeagueOperations(supabase, courseId, context.leagueId, context.currentWeek);
+  const { data: course } = await supabase.from('courses')
+    .select('name,account_status,closed_at').eq('id', courseId).maybeSingle();
+
+  // An admin runs the league; only the owner ends it.
+  const canEndWorkspace = hasAdminRole(context.role, COURSE_LIFECYCLE_ROLES) && Boolean(course);
+  const workspaceSection = canEndWorkspace ? (
+    <div className="birvo-card" style={{ padding: '2rem', gridColumn: '1 / -1', background: '#ffffff' }}>
+      <h2 style={{ margin: '0 0 1rem', fontSize: '1.3rem' }}>Workspace</h2>
+      <WorkspaceLifecycle
+        courseName={course.name}
+        accountStatus={course.account_status}
+        closedAt={course.closed_at}
+      />
+    </div>
+  ) : null;
+
   const league = operations.league;
   if (!league) {
-    return <EmptyState title="No active league to configure" description="Create an active league before using schedule, postponement, and week-closing tools." primaryHref="/admin/leagues" primaryLabel="Create league" />;
+    // A workspace with no league is exactly the one somebody wants to close, so
+    // the section has to survive this branch rather than sit below it.
+    return (
+      <div className="container" style={{ padding: 0, maxWidth: '1000px' }}>
+        <EmptyState title="No active league to configure" description="Create an active league before using schedule, postponement, and week-closing tools." primaryHref="/admin/leagues" primaryLabel="Create league" />
+        {workspaceSection && (
+          <div style={{ display: 'grid', gap: '2rem', marginTop: '2rem' }}>{workspaceSection}</div>
+        )}
+      </div>
+    );
   }
 
   const readiness = operations.readiness;
@@ -118,6 +144,8 @@ export default async function SettingsPage() {
           <p style={{ margin: '0 0 1rem', color: 'var(--color-text-muted)', fontSize: '.88rem' }}>Rotate a link immediately if a QR code or URL was shared with the wrong audience. Rotation cannot be undone.</p>
           <PublicLinkControls leagueId={league.id} links={publicLinks} />
         </div>
+
+        {workspaceSection}
 
       </div>
 
