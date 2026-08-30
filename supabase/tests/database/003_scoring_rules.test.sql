@@ -7,7 +7,7 @@
 -- is where that coverage moved to.
 begin;
 set local search_path = public, extensions;
-select plan(31);
+select plan(38);
 
 -- ─── Fixture ────────────────────────────────────────────────────────────────
 insert into auth.users(
@@ -33,6 +33,40 @@ insert into public.courses(id,name,city,state) values
 insert into public.course_holes(course_id,layout_name,hole_number,par,stroke_index)
 select 'c9000000-0000-4000-8000-000000000009','Main Course',n,(array[4,4,3,5,4,4,3,5,4])[n],n
 from generate_series(1,9) n;
+
+-- A third course carrying the same golfer through three leagues, one per handicap
+-- method, so the methods can be compared on identical rounds: five honest cards
+-- (88,90,89,91,88) then five deliberately bad ones (104,106,105,107,104).
+insert into public.courses(id,name,city,state) values
+  ('d0000000-0000-4000-8000-00000000d001','Method Test Club','Auburn','IN');
+insert into public.course_holes(course_id,layout_name,hole_number,par,stroke_index)
+select 'd0000000-0000-4000-8000-00000000d001','Main Course',n,
+  (array[4,4,3,5,4,4,3,5,4,4,4,3,5,4,4,3,5,4])[n], n from generate_series(1,18) n;
+insert into public.course_tee_boxes(course_id,name,course_rating,slope_rating,total_yards)
+values ('d0000000-0000-4000-8000-00000000d001','White',72.0,128,6400);
+insert into public.leagues(id,course_id,name,status,game_format,current_week,season_length_weeks,handicap_method)
+values
+  ('d1000000-0000-4000-8000-00000000d001','d0000000-0000-4000-8000-00000000d001','Avg League','active','stroke_play',11,12,'league_average'),
+  ('d1000000-0000-4000-8000-00000000d002','d0000000-0000-4000-8000-00000000d001','BestOf League','active','stroke_play',11,12,'best_of'),
+  ('d1000000-0000-4000-8000-00000000d003','d0000000-0000-4000-8000-00000000d001','WHS League','active','stroke_play',11,12,'whs');
+insert into public.teams(id,course_id,league_id,name,status,current_handicap)
+select ('d2000000-0000-4000-8000-00000000d00'||i)::uuid,
+       'd0000000-0000-4000-8000-00000000d001',
+       ('d1000000-0000-4000-8000-00000000d00'||i)::uuid,
+       'Sandbagger','active',0
+from generate_series(1,3) i;
+insert into public.matches(id,course_id,league_id,week_number,status)
+select ('d2500000-0000-4000-8000-'||lpad((i*100+w)::text,12,'0'))::uuid,
+       'd0000000-0000-4000-8000-00000000d001',
+       ('d1000000-0000-4000-8000-00000000d00'||i)::uuid, w, 'locked'
+from generate_series(1,3) i, generate_series(1,10) w;
+insert into public.scores(course_id,match_id,team_id,gross_score,handicap_used,net_score,attestation_status)
+select 'd0000000-0000-4000-8000-00000000d001',
+       ('d2500000-0000-4000-8000-'||lpad((i*100+w)::text,12,'0'))::uuid,
+       ('d2000000-0000-4000-8000-00000000d00'||i)::uuid,
+       (array[88,90,89,91,88,104,106,105,107,104])[w], 0,
+       (array[88,90,89,91,88,104,106,105,107,104])[w], 'approved'
+from generate_series(1,3) i, generate_series(1,10) w;
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-000000000001","email":"owner@example.com","role":"authenticated"}';
@@ -231,6 +265,33 @@ select is(public.course_par('c9000000-0000-4000-8000-000000000009'), 36,
   'a nine-hole layout has a par of 36');
 select is(public.course_par('00000000-0000-4000-8000-00000000ffff'), 36,
   'a course with no layout falls back to 36 rather than null');
+
+-- ─── Handicap method ────────────────────────────────────────────────────────
+-- WHS Rule 5.2a: how many of the lowest differentials count, and the adjustment
+-- applied while a scoring record is still filling out.
+select is(public.whs_index_from_differentials(array[15.0,17.0,16.0]::numeric[]), 13.0,
+  'three differentials: lowest one less 2.0');
+select is(public.whs_index_from_differentials(array[15.0,17.0,16.0,18.0]::numeric[]), 14.0,
+  'four differentials: lowest one less 1.0');
+select is(public.whs_index_from_differentials(array[15.0,17.0,16.0,18.0,19.0]::numeric[]), 15.0,
+  'five differentials: lowest one, no adjustment');
+select is(public.whs_index_from_differentials(array[15.0,17.0,16.0,18.0,19.0,20.0]::numeric[]), 14.5,
+  'six differentials: average of the lowest two less 1.0');
+select is(public.whs_index_from_differentials(
+    array[10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29]::numeric[]), 13.5,
+  'twenty differentials: average of the lowest eight');
+
+-- The whole reason the method is configurable: averaging every round can be
+-- gamed, and best-of cannot. Five deliberately bad cards after five honest ones.
+select is(
+  (select round(public.calculate_team_handicap(t.id, 10) - public.calculate_team_handicap(t.id, 5), 1)
+   from public.teams t where t.id = 'd2000000-0000-4000-8000-00000000d001'),
+  6.4::numeric,
+  'league_average hands a sandbagger 6.4 strokes');
+select ok(
+  (select public.calculate_team_handicap(t.id, 10) - public.calculate_team_handicap(t.id, 5)
+   from public.teams t where t.id = 'd2000000-0000-4000-8000-00000000d003') <= 0.5,
+  'whs hands the same sandbagger half a stroke at most');
 
 select * from finish();
 rollback;

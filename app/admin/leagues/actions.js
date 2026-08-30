@@ -53,3 +53,28 @@ export async function generatePlayoffAction(formData) {
   revalidatePath('/admin/leagues');
   return { success: true };
 }
+
+export async function setHandicapMethod(formData) {
+  const context = await requireAdminRole(COURSE_MANAGEMENT_ROLES);
+
+  const leagueId = formData.get('leagueId');
+  const method = String(formData.get('handicapMethod') || '');
+  const allowancePercent = Number(formData.get('allowancePercent'));
+  if (!['league_average', 'best_of', 'whs'].includes(method)) return { error: 'Invalid handicap method.' };
+  if (!Number.isInteger(allowancePercent) || allowancePercent < 50 || allowancePercent > 100) {
+    return { error: 'Handicap allowance must be between 50 and 100 percent.' };
+  }
+
+  try {
+    await operationsService.setLeagueHandicapMethod(await createClient(), {
+      courseId: context.courseId, leagueId, method, allowancePercent,
+    });
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Unable to change the handicap method.' };
+  }
+
+  revalidatePath('/admin/leagues');
+  revalidatePath('/admin/handicaps');
+  revalidatePath('/admin');
+  return { success: true };
+}

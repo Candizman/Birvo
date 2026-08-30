@@ -1,5 +1,5 @@
 import { getAdminContext, COURSE_MANAGEMENT_ROLES, hasAdminRole } from '../../../lib/auth';
-import { createLeague, updateLeagueFormat, generatePlayoffAction } from './actions';
+import { createLeague, updateLeagueFormat, generatePlayoffAction, setHandicapMethod } from './actions';
 import EmptyState from '../../../components/ui/EmptyState';
 import {
   TrophyIcon,
@@ -103,6 +103,7 @@ export default async function LeaguesPage() {
             <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-muted)', fontSize: '0.85rem', textTransform: 'uppercase' }}>
               <th style={{ padding: '12px' }}>League Name</th>
               <th style={{ padding: '12px' }}>Current Format</th>
+              <th style={{ padding: '12px' }}>Handicap Method</th>
               <th style={{ padding: '12px' }}>Current Round</th>
               <th style={{ padding: '12px' }}>Status</th>
               <th style={{ padding: '12px', textAlign: 'right' }}>Playoff Bracket</th>
@@ -129,6 +130,38 @@ export default async function LeaguesPage() {
                     </select>
                     <button type="submit" style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'rgba(255,255,255,0.06)', color: 'white', fontSize: '0.78rem', fontWeight: 750, cursor: 'pointer' }}>
                       Save format
+                    </button>
+                  </form>
+                </td>
+                <td style={{ padding: '14px 12px' }}>
+                  {/* Frozen once the league has scores, the same as the game format:
+                      a season cannot change how it calculates handicaps mid-way. */}
+                  <form action={setHandicapMethod} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <input type="hidden" name="leagueId" value={l.id} />
+                    <select
+                      name="handicapMethod"
+                      defaultValue={l.handicap_method || 'whs'}
+                      title="How each team's handicap is calculated from their scores"
+                      style={{ padding: '6px 12px', background: 'rgba(0,0,0,0.5)', border: '1px solid var(--color-border)', color: 'var(--color-primary)', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      <option value="whs">World Handicap System</option>
+                      <option value="best_of">Best half of last 10</option>
+                      <option value="league_average">Average of all rounds</option>
+                    </select>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>
+                      <input
+                        type="number"
+                        name="allowancePercent"
+                        defaultValue={l.handicap_allowance_percent ?? 80}
+                        min="50"
+                        max="100"
+                        title="Share of the handicap actually given. 80% is the common league setting."
+                        style={{ width: '58px', padding: '6px', background: 'rgba(0,0,0,0.5)', border: '1px solid var(--color-border)', color: 'white', borderRadius: '6px', fontSize: '0.85rem', textAlign: 'center', fontWeight: 700 }}
+                      />
+                      %
+                    </label>
+                    <button type="submit" style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'rgba(255,255,255,0.06)', color: 'white', fontSize: '0.78rem', fontWeight: 750, cursor: 'pointer' }}>
+                      Save
                     </button>
                   </form>
                 </td>
