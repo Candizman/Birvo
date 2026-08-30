@@ -1,6 +1,6 @@
 begin;
 set local search_path = public, extensions;
-select plan(89);
+select plan(92);
 
 -- Feature-parity tables.
 select has_table('public',name,'public.'||name||' exists') from (values
@@ -93,6 +93,8 @@ select has_function('public','course_par',array['uuid']);
 select has_function('public','calculate_team_handicap',array['uuid','integer']);
 select has_function('public','set_league_handicap_method',array['uuid','uuid','text','integer']);
 select has_function('public','whs_index_from_differentials',array['numeric[]']);
+select has_function('public','league_rating',array['uuid']);
+select has_function('public','apply_provisional_handicap',array['uuid']);
 select has_column('public','leagues','handicap_method','public.leagues.handicap_method exists');
 select has_column('public','leagues','handicap_allowance_percent','public.leagues.handicap_allowance_percent exists');
 select has_function('public','register_player_team',array['uuid','text','numeric','text']);
@@ -173,9 +175,20 @@ select ok(
   and has_function_privilege('service_role','public.save_player_round_note(uuid,integer,text)','EXECUTE'),
   'service role can execute server-owned player operations'
 );
+
+-- These check that a team HAS a PIN, never that the caller knows it; the PIN
+-- session is verified in the Next.js route above them. Reachable by anon, they
+-- would let anybody post a card for any team id.
+select ok(
+  not has_function_privilege('anon','public.submit_player_gross_score(uuid,integer)','EXECUTE')
+  and not has_function_privilege('anon','public.submit_player_hole_scorecard(uuid,uuid,jsonb,text)','EXECUTE')
+  and not has_function_privilege('authenticated','public.submit_player_gross_score(uuid,integer)','EXECUTE')
+  and not has_function_privilege('authenticated','public.submit_player_hole_scorecard(uuid,uuid,jsonb,text)','EXECUTE'),
+  'player score submission is reachable only through the server, never from a browser'
+);
 select is(
   (select schema_version from public.app_metadata where key='database'),
-  18,
+  20,
   'database schema marker is at the expected version'
 );
 

@@ -7,7 +7,7 @@
 -- is where that coverage moved to.
 begin;
 set local search_path = public, extensions;
-select plan(38);
+select plan(44);
 
 -- ─── Fixture ────────────────────────────────────────────────────────────────
 insert into auth.users(
@@ -292,6 +292,74 @@ select ok(
   (select public.calculate_team_handicap(t.id, 10) - public.calculate_team_handicap(t.id, 5)
    from public.teams t where t.id = 'd2000000-0000-4000-8000-00000000d003') <= 0.5,
   'whs hands the same sandbagger half a stroke at most');
+
+-- ─── The first round is played off a handicap, not off scratch ──────────────
+-- Birvo is sold to courses starting a season with players who have no record, so
+-- the cold start is the normal case rather than the exception.
+insert into public.leagues(id,course_id,name,status,game_format,current_week,season_length_weeks,handicap_method)
+values ('e1000000-0000-4000-8000-00000000e001','d0000000-0000-4000-8000-00000000d001',
+        'Cold Start League','active','stroke_play',1,10,'league_average');
+insert into public.teams(id,course_id,league_id,name,status,current_handicap) values
+  ('e2000000-0000-4000-8000-00000000e001','d0000000-0000-4000-8000-00000000d001',
+   'e1000000-0000-4000-8000-00000000e001','Newcomers','active',0),
+  ('e2000000-0000-4000-8000-00000000e002','d0000000-0000-4000-8000-00000000d001',
+   'e1000000-0000-4000-8000-00000000e001','No Shows','active',0);
+insert into public.matches(id,course_id,league_id,week_number,status) values
+  ('e3000000-0000-4000-8000-00000000e001','d0000000-0000-4000-8000-00000000d001',
+   'e1000000-0000-4000-8000-00000000e001',1,'open'),
+  ('e3000000-0000-4000-8000-00000000e002','d0000000-0000-4000-8000-00000000d001',
+   'e1000000-0000-4000-8000-00000000e001',2,'open');
+
+-- Par is 72 and the allowance 80%, so a 92 gives (92 - 72) x 0.8 = 16.0.
+insert into public.scores(id,course_id,match_id,team_id,gross_score,handicap_used,net_score,
+  attestation_status,reconciliation_status,is_ghost)
+values ('e4000000-0000-4000-8000-00000000e001','d0000000-0000-4000-8000-00000000d001',
+  'e3000000-0000-4000-8000-00000000e001','e2000000-0000-4000-8000-00000000e001',
+  92,0,92,'approved','ok',false);
+select public.apply_provisional_handicap('e4000000-0000-4000-8000-00000000e001');
+
+select is((select handicap_used from public.scores where id='e4000000-0000-4000-8000-00000000e001'),
+  16.0::numeric, 'a team with no record plays its first round off a handicap drawn from that round');
+select is((select net_score from public.scores where id='e4000000-0000-4000-8000-00000000e001'),
+  76.0::numeric, 'and the net score is restated against it');
+
+-- From the second round on there is a real record, so the handicap the team
+-- carried into the round stands.
+insert into public.scores(id,course_id,match_id,team_id,gross_score,handicap_used,net_score,
+  attestation_status,reconciliation_status,is_ghost)
+values ('e4000000-0000-4000-8000-00000000e002','d0000000-0000-4000-8000-00000000d001',
+  'e3000000-0000-4000-8000-00000000e002','e2000000-0000-4000-8000-00000000e001',
+  88,16.0,72,'approved','ok',false);
+select public.apply_provisional_handicap('e4000000-0000-4000-8000-00000000e002');
+select is((select handicap_used from public.scores where id='e4000000-0000-4000-8000-00000000e002'),
+  16.0::numeric, 'a second round is not rewritten: the team already had a record to play off');
+
+-- ─── A ghost score describes nobody ─────────────────────────────────────────
+-- A ghost is the field average posted for a team that did not show up. It scores
+-- for the standings but it is not a round anyone played, so it must not move a
+-- handicap in either direction.
+insert into public.scores(id,course_id,match_id,team_id,gross_score,handicap_used,net_score,
+  attestation_status,reconciliation_status,is_ghost)
+values ('e4000000-0000-4000-8000-00000000e011','d0000000-0000-4000-8000-00000000d001',
+  'e3000000-0000-4000-8000-00000000e001','e2000000-0000-4000-8000-00000000e002',
+  100,0,100,'approved','ok',true);
+insert into public.scores(id,course_id,match_id,team_id,gross_score,handicap_used,net_score,
+  attestation_status,reconciliation_status,is_ghost)
+values ('e4000000-0000-4000-8000-00000000e012','d0000000-0000-4000-8000-00000000d001',
+  'e3000000-0000-4000-8000-00000000e002','e2000000-0000-4000-8000-00000000e002',
+  90,0,90,'approved','ok',false);
+
+-- Counting the ghost would give ((100 + 90) / 2 - 72) x 0.8 = 18.4.
+select is(public.calculate_team_handicap('e2000000-0000-4000-8000-00000000e002', 2),
+  14.4::numeric, 'a ghost round is left out of the handicap: only the 90 counts');
+
+select public.apply_provisional_handicap('e4000000-0000-4000-8000-00000000e012');
+select is((select handicap_used from public.scores where id='e4000000-0000-4000-8000-00000000e012'),
+  14.4::numeric, 'a team whose only earlier appearance was a ghost still counts as having no record');
+
+select public.apply_provisional_handicap('e4000000-0000-4000-8000-00000000e011');
+select is((select handicap_used from public.scores where id='e4000000-0000-4000-8000-00000000e011'),
+  0.0::numeric, 'the ghost score itself is never given a provisional handicap');
 
 select * from finish();
 rollback;

@@ -47,7 +47,10 @@
 -- zeros makes week 1 scratch play. Measured across the pilot season, the net
 -- spread in week 1 was 26.0 strokes against 8.6-11.8 in every later week -- and
 -- it was identical under all three methods. That is a data problem, not a formula
--- problem: seed real starting handicaps in the roster import.
+-- problem, and no choice made here fixes it.
+--
+-- 202608300004 does fix it, by deriving a team's first handicap from the round
+-- they are playing rather than starting them at scratch.
 begin;
 
 alter table public.leagues
