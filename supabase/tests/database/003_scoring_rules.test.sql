@@ -7,7 +7,7 @@
 -- is where that coverage moved to.
 begin;
 set local search_path = public, extensions;
-select plan(51);
+select plan(58);
 
 -- ─── Fixture ────────────────────────────────────────────────────────────────
 insert into auth.users(
@@ -87,7 +87,17 @@ insert into public.teams(id,course_id,league_id,name,status,current_handicap) va
   ('b2000000-0000-4000-8000-0000000000b2','b0000000-0000-4000-8000-0000000000b1','b1000000-0000-4000-8000-0000000000b1','Beta','active',0);
 insert into public.matches(id,course_id,league_id,week_number,status) values
   ('b2500000-0000-4000-8000-0000000000b1','b0000000-0000-4000-8000-0000000000b1',
-   'b1000000-0000-4000-8000-0000000000b1',1,'open');
+   'b1000000-0000-4000-8000-0000000000b1',1,'open'),
+  ('b2500000-0000-4000-8000-0000000000b2','b0000000-0000-4000-8000-0000000000b1',
+   'b1000000-0000-4000-8000-0000000000b1',2,'open');
+-- Two substitutes at opposite ends, plus one belonging to another league.
+insert into public.substitutes(id,course_id,league_id,name,handicap,status) values
+  ('b3000000-0000-4000-8000-0000000000b1','b0000000-0000-4000-8000-0000000000b1',
+   'b1000000-0000-4000-8000-0000000000b1','Ringer',2.0,'available'),
+  ('b3000000-0000-4000-8000-0000000000b2','b0000000-0000-4000-8000-0000000000b1',
+   'b1000000-0000-4000-8000-0000000000b1','Weak',20.0,'available'),
+  ('b3000000-0000-4000-8000-0000000000b9','d0000000-0000-4000-8000-00000000d001',
+   'd1000000-0000-4000-8000-00000000d001','Outsider',5.0,'available');
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-000000000001","email":"owner@example.com","role":"authenticated"}';
@@ -255,6 +265,53 @@ select is((select count(*)::integer from public.score_hole_details d
     join public.scores s on s.id = d.score_id
     where s.team_id='b2000000-0000-4000-8000-0000000000b1'), 0,
   'the old hole-by-hole breakdown does not survive a total that contradicts it');
+
+-- ─── Substitutes ────────────────────────────────────────────────────────────
+-- Alpha's own card above was an 84 off a par of 72, so the team plays off
+-- (84 - 72) x 0.8 = 9.6. A substitute plays off the lower of their handicap and
+-- the team's, which is the ordinary anti-ringer rule.
+select is((select current_handicap from public.teams where id='b2000000-0000-4000-8000-0000000000b1'),
+  9.6::numeric(4,1), 'the team has a handicap of its own to cap a substitute against');
+
+select lives_ok(
+  $$select public.save_score_batch(
+    'b0000000-0000-4000-8000-0000000000b1','b1000000-0000-4000-8000-0000000000b1',2,
+    '[{"teamId":"b2000000-0000-4000-8000-0000000000b1","grossScore":78,
+       "substituteId":"b3000000-0000-4000-8000-0000000000b1"}]'::jsonb)$$,
+  'a substitute can post a score'
+);
+select is((select handicap_used from public.scores
+    where match_id='b2500000-0000-4000-8000-0000000000b2'),
+  2.0::numeric(4,1),
+  'a two-handicap substitute for a 9.6 team plays off 2.0, so a ringer buys nothing');
+
+select lives_ok(
+  $$select public.save_score_batch(
+    'b0000000-0000-4000-8000-0000000000b1','b1000000-0000-4000-8000-0000000000b1',2,
+    '[{"teamId":"b2000000-0000-4000-8000-0000000000b1","grossScore":95,
+       "substituteId":"b3000000-0000-4000-8000-0000000000b2"}]'::jsonb)$$,
+  'the card can be re-entered against a different substitute'
+);
+select is((select handicap_used from public.scores
+    where match_id='b2500000-0000-4000-8000-0000000000b2'),
+  9.6::numeric(4,1),
+  'a twenty-handicap substitute is capped at the team''s 9.6, so a weak stand-in cannot inflate it');
+
+-- The whole point: somebody else played, so the round scores for the league but
+-- says nothing about this team. A 78 and a 95 by substitutes both leave the
+-- team's own handicap where its own card put it.
+select is((select current_handicap from public.teams where id='b2000000-0000-4000-8000-0000000000b1'),
+  9.6::numeric(4,1),
+  'a substitute round is left out of the team''s handicap');
+
+select throws_ok(
+  $$select public.save_score_batch(
+    'b0000000-0000-4000-8000-0000000000b1','b1000000-0000-4000-8000-0000000000b1',2,
+    '[{"teamId":"b2000000-0000-4000-8000-0000000000b1","grossScore":80,
+       "substituteId":"b3000000-0000-4000-8000-0000000000b9"}]'::jsonb)$$,
+  'P0001','Unknown substitute for this league',
+  'a substitute from another league cannot be borrowed, handicap and all'
+);
 
 -- ─── Ghost scores ───────────────────────────────────────────────────────────
 select throws_ok(

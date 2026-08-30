@@ -29,6 +29,7 @@ export default async function RapidEntry() {
     <div className="container" style={{ maxWidth: '100%', padding: '0 1rem' }}>
       <RapidEntryForm
         teams={teams}
+        substitutes={readiness.substitutes || []}
         holes={readiness.holes || []}
         formatLabel={format.label}
         // Stableford, match play and the side games cannot be scored from a

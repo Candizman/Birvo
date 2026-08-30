@@ -5,7 +5,7 @@ import { saveScores } from './actions';
 import { SparklesIcon, CheckIcon, AlertCircleIcon, DownloadIcon } from '../../../components/icons/GolfIcons';
 import { useToast } from '../../../components/ui/ToastContext';
 
-export default function RapidEntryForm({ teams, holes = [], formatLabel = 'Stroke play', formatNeedsHoles = false }) {
+export default function RapidEntryForm({ teams, substitutes = [], holes = [], formatLabel = 'Stroke play', formatNeedsHoles = false }) {
   const [state, formAction, isPending] = useActionState(saveScores, null);
   const { addToast } = useToast();
 
@@ -13,6 +13,9 @@ export default function RapidEntryForm({ teams, holes = [], formatLabel = 'Strok
   const [bulkPasteOpen, setBulkPasteOpen] = useState(false);
   const [bulkText, setBulkText] = useState('');
   const [holeScores, setHoleScores] = useState({});
+  const [subsByTeam, setSubsByTeam] = useState({});
+
+  const substituteById = new Map(substitutes.map(sub => [String(sub.id), sub]));
   // A format scored hole by hole cannot use a total at all, so its grids start
   // open. Stroke play keeps the one-box-per-team entry it has always had.
   const [openGrids, setOpenGrids] = useState(
@@ -175,6 +178,7 @@ export default function RapidEntryForm({ teams, holes = [], formatLabel = 'Strok
             <tr style={{ borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
               <th style={{ padding: '14px 18px' }}>Team / Player Name</th>
               <th style={{ padding: '14px 18px', textAlign: 'center' }}>Playing HI</th>
+              <th style={{ padding: '14px 18px', textAlign: 'center' }}>Substitute</th>
               <th style={{ padding: '14px 18px', width: '180px' }}>Gross Score</th>
               <th style={{ padding: '14px 18px', textAlign: 'center' }}>Calculated Net</th>
               <th style={{ padding: '14px 18px', textAlign: 'center' }}>Hole card</th>
@@ -186,11 +190,19 @@ export default function RapidEntryForm({ teams, holes = [], formatLabel = 'Strok
               const currentVal = inputScores[team.id] ?? '';
               const { total: holeTotal, filled } = holeTotalFor(team.id);
               const gridOpen = openGrids.has(team.id);
+              const substituteFor = substituteById.get(String(subsByTeam[team.id] ?? '')) || null;
+              // Mirrors substitute_playing_handicap: the lower of the two, and
+              // the substitute's own when the team has nothing to cap against.
+              const playingHandicap = substituteFor
+                ? (team.current_handicap > 0
+                    ? Math.min(Number(substituteFor.handicap), team.current_handicap)
+                    : Number(substituteFor.handicap))
+                : team.current_handicap;
               // A completed hole card is the score. The typed total, when there
               // is one, is only there to be checked against it.
               const effectiveGross = holeTotal ?? parseFloat(currentVal);
               const calculatedNet = Number.isFinite(effectiveGross) && effectiveGross > 0
-                ? (effectiveGross - team.current_handicap).toFixed(1)
+                ? (effectiveGross - playingHandicap).toFixed(1)
                 : '-';
               const totalDisagrees = holeTotal !== null && currentVal !== ''
                 && Number(currentVal) !== holeTotal;
@@ -202,7 +214,37 @@ export default function RapidEntryForm({ teams, holes = [], formatLabel = 'Strok
                     {team.name}
                   </td>
                   <td style={{ padding: '16px 18px', textAlign: 'center', color: '#64748b', fontWeight: 700, fontSize: '1rem' }}>
-                    {team.current_handicap.toFixed(1)}
+                    {playingHandicap.toFixed(1)}
+                    {substituteFor && (
+                      <span style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: '#b45309' }}>
+                        was {team.current_handicap.toFixed(1)}
+                      </span>
+                    )}
+                  </td>
+                  <td style={{ padding: '16px 18px', textAlign: 'center' }}>
+                    {substitutes.length === 0 ? (
+                      <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>None on file</span>
+                    ) : (
+                      <select
+                        name={`substitute_${team.id}`}
+                        value={subsByTeam[team.id] ?? ''}
+                        onChange={(e) => setSubsByTeam(prev => ({ ...prev, [team.id]: e.target.value }))}
+                        aria-label={`Substitute playing for ${team.name}`}
+                        style={{
+                          padding: '8px 10px', borderRadius: '10px', fontSize: '0.9rem', fontWeight: 700,
+                          color: substituteFor ? '#b45309' : '#475569', cursor: 'pointer', maxWidth: '170px',
+                          border: substituteFor ? '2px solid #f59e0b' : '1px solid #cbd5e1',
+                          background: substituteFor ? '#fffbeb' : '#ffffff',
+                        }}
+                      >
+                        <option value="">Team played</option>
+                        {substitutes.map(sub => (
+                          <option key={sub.id} value={sub.id}>
+                            {sub.name} ({Number(sub.handicap).toFixed(1)})
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </td>
                   <td style={{ padding: '16px 18px' }}>
                     <input
@@ -259,7 +301,7 @@ export default function RapidEntryForm({ teams, holes = [], formatLabel = 'Strok
 
                 {gridOpen && (
                   <tr style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#f8fafc' : 'transparent' }}>
-                    <td colSpan={6} style={{ padding: '0 18px 18px 18px' }}>
+                    <td colSpan={7} style={{ padding: '0 18px 18px 18px' }}>
                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
                         {holes.map(hole => (
                           <label key={hole.hole_number} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>

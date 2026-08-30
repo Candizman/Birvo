@@ -57,6 +57,17 @@ export async function saveScores(prevState, formData) {
       }
 
       const entry = { teamId };
+
+      // Who actually played. The database caps a substitute's handicap at the
+      // team's and keeps the round out of the team's scoring record, so this one
+      // field changes both what the card is worth and what it says about them.
+      const rawSubstitute = rawData[`substitute_${teamId}`];
+      if (rawSubstitute && String(rawSubstitute).trim() !== '') {
+        const substituteId = normalizeEntityId(rawSubstitute);
+        if (!substituteId) throw new Error('Invalid substitute.');
+        entry.substituteId = substituteId;
+      }
+
       if (hasTotal) {
         const numValue = Number(value);
         if (!Number.isInteger(numValue) || numValue < 1 || numValue > 200) {
