@@ -591,6 +591,13 @@ test('PostgreSQL production contract', async t => {
           select(value) { calls.push(['select', table, value]); return query; },
           eq(column, value) { calls.push(['eq', table, column, value]); return query; },
           or(value) { calls.push(['or', table, value]); return query; },
+          // The player card carries a season rank, so getPlayerHome also reads the
+          // standings. Those queries order and await the builder directly.
+          in(column, values) { calls.push(['in', table, column, values]); return query; },
+          order(column, options) { calls.push(['order', table, column, options]); return query; },
+          then(resolve, reject) {
+            return Promise.resolve({ data: rows[table] || [], error: null }).then(resolve, reject);
+          },
           async maybeSingle() {
             const index = table === 'teams' ? reads[table] - 1 : 0;
             return { data: rows[table]?.[index] || null, error: null };

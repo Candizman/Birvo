@@ -1,6 +1,6 @@
 begin;
 set local search_path = public, extensions;
-select plan(82);
+select plan(85);
 
 -- Feature-parity tables.
 select has_table('public',name,'public.'||name||' exists') from (values
@@ -88,6 +88,9 @@ select has_function('public','save_tv_display_settings',array['uuid','uuid','tex
 select has_function('public','add_tv_sponsor',array['uuid','uuid','text','text','integer']);
 select has_function('public','delete_tv_sponsor',array['uuid','uuid','uuid']);
 select has_function('public','apply_ghost_score',array['uuid','uuid','uuid','integer']);
+select has_function('public','archive_league',array['uuid','uuid']);
+select has_function('public','course_par',array['uuid']);
+select has_function('public','calculate_team_handicap',array['uuid','integer']);
 select has_function('public','register_player_team',array['uuid','text','numeric','text']);
 select has_function('public','upgrade_player_pin_hash',array['uuid','text']);
 select has_function('public','submit_player_gross_score',array['uuid','integer']);
@@ -168,7 +171,7 @@ select ok(
 );
 select is(
   (select schema_version from public.app_metadata where key='database'),
-  14,
+  15,
   'database schema marker is at the expected version'
 );
 
