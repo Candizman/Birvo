@@ -22,10 +22,19 @@ export default async function RapidEntry() {
   }
 
   const teams = readiness.teams || [];
+  const { getFormatDefinition } = require('../../../lib/domain/leagueFormats');
+  const format = getFormatDefinition(readiness.gameFormat);
 
   return (
     <div className="container" style={{ maxWidth: '100%', padding: '0 1rem' }}>
-      <RapidEntryForm teams={teams} />
+      <RapidEntryForm
+        teams={teams}
+        holes={readiness.holes || []}
+        formatLabel={format.label}
+        // Stableford, match play and the side games cannot be scored from a
+        // total, so the hole grid opens by default when the league uses one.
+        formatNeedsHoles={format.needsHoleScores}
+      />
     </div>
   );
 }

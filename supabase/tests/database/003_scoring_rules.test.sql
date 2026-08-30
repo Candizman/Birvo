@@ -7,7 +7,7 @@
 -- is where that coverage moved to.
 begin;
 set local search_path = public, extensions;
-select plan(44);
+select plan(51);
 
 -- ─── Fixture ────────────────────────────────────────────────────────────────
 insert into auth.users(
@@ -67,6 +67,27 @@ select 'd0000000-0000-4000-8000-00000000d001',
        (array[88,90,89,91,88,104,106,105,107,104])[w], 0,
        (array[88,90,89,91,88,104,106,105,107,104])[w], 'approved'
 from generate_series(1,3) i, generate_series(1,10) w;
+
+-- A fourth course, owned by the same user, kept apart from the first so that the
+-- hole-by-hole assertions do not disturb its score and audit-log counters.
+insert into public.courses(id,name,city,state) values
+  ('b0000000-0000-4000-8000-0000000000b1','Hole Card Club','Auburn','IN');
+insert into public.course_memberships(course_id,user_id,email,role,status) values
+  ('b0000000-0000-4000-8000-0000000000b1','10000000-0000-4000-8000-000000000001','owner@example.com','course_owner','active');
+insert into public.course_holes(course_id,layout_name,hole_number,par,stroke_index)
+select 'b0000000-0000-4000-8000-0000000000b1','Main Course',n,
+  (array[4,4,3,5,4,4,3,5,4,4,4,3,5,4,4,3,5,4])[n], n from generate_series(1,18) n;
+insert into public.course_tee_boxes(course_id,name,course_rating,slope_rating,total_yards)
+values ('b0000000-0000-4000-8000-0000000000b1','White',72.0,113,6400);
+insert into public.leagues(id,course_id,name,status,game_format,current_week,season_length_weeks,handicap_method)
+values ('b1000000-0000-4000-8000-0000000000b1','b0000000-0000-4000-8000-0000000000b1',
+        'Hole Card League','active','stableford',1,10,'league_average');
+insert into public.teams(id,course_id,league_id,name,status,current_handicap) values
+  ('b2000000-0000-4000-8000-0000000000b1','b0000000-0000-4000-8000-0000000000b1','b1000000-0000-4000-8000-0000000000b1','Alpha','active',0),
+  ('b2000000-0000-4000-8000-0000000000b2','b0000000-0000-4000-8000-0000000000b1','b1000000-0000-4000-8000-0000000000b1','Beta','active',0);
+insert into public.matches(id,course_id,league_id,week_number,status) values
+  ('b2500000-0000-4000-8000-0000000000b1','b0000000-0000-4000-8000-0000000000b1',
+   'b1000000-0000-4000-8000-0000000000b1',1,'open');
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-000000000001","email":"owner@example.com","role":"authenticated"}';
@@ -173,6 +194,67 @@ select is((select net_score from public.scores
 select is((select count(*)::integer from public.score_audit_logs
     where course_id='a0000000-0000-4000-8000-000000000001'), 1,
   'the correction is written to the score audit log');
+
+-- ─── Staff entry, hole by hole ──────────────────────────────────────────────
+-- Stableford, match play and the side games cannot be scored from a total, and
+-- the paper mode is the mode these courses use. Without this the formats had no
+-- way to reach their data.
+select lives_ok(
+  $$select public.save_score_batch(
+    'b0000000-0000-4000-8000-0000000000b1','b1000000-0000-4000-8000-0000000000b1',1,
+    (select jsonb_build_array(jsonb_build_object(
+       'teamId','b2000000-0000-4000-8000-0000000000b1',
+       'holes',(select jsonb_agg(jsonb_build_object('holeNumber',n,'grossScore',5))
+                from generate_series(1,18) n))))
+  )$$,
+  'a card can be entered hole by hole'
+);
+select is((select gross_score from public.scores
+    where match_id='b2500000-0000-4000-8000-0000000000b1'
+      and team_id='b2000000-0000-4000-8000-0000000000b1'),
+  90::smallint,
+  'the gross is the sum of the holes, so the two cannot disagree in the database');
+select is((select count(*)::integer from public.score_hole_details d
+    join public.scores s on s.id = d.score_id
+    where s.team_id='b2000000-0000-4000-8000-0000000000b1'), 18,
+  'every hole is stored');
+
+select throws_ok(
+  $$select public.save_score_batch(
+    'b0000000-0000-4000-8000-0000000000b1','b1000000-0000-4000-8000-0000000000b1',1,
+    (select jsonb_build_array(jsonb_build_object(
+       'teamId','b2000000-0000-4000-8000-0000000000b1','grossScore',89,
+       'holes',(select jsonb_agg(jsonb_build_object('holeNumber',n,'grossScore',5))
+                from generate_series(1,18) n))))
+  )$$,
+  'P0001','The total entered (89) does not match the holes entered (90)',
+  'a total that contradicts the holes is refused rather than quietly resolved'
+);
+
+select throws_ok(
+  $$select public.save_score_batch(
+    'b0000000-0000-4000-8000-0000000000b1','b1000000-0000-4000-8000-0000000000b1',1,
+    (select jsonb_build_array(jsonb_build_object(
+       'teamId','b2000000-0000-4000-8000-0000000000b1',
+       'holes',(select jsonb_agg(jsonb_build_object('holeNumber',n,'grossScore',5))
+                from generate_series(1,10) n))))
+  )$$,
+  'P0001','A hole-by-hole card must cover all 18 holes',
+  'a part-filled card is refused'
+);
+
+-- Hole detail that no longer describes the card is dropped: a format engine
+-- reading it would otherwise score a round that contradicts its own gross.
+select lives_ok(
+  $$select public.save_score_batch(
+    'b0000000-0000-4000-8000-0000000000b1','b1000000-0000-4000-8000-0000000000b1',1,
+    '[{"teamId":"b2000000-0000-4000-8000-0000000000b1","grossScore":84}]'::jsonb)$$,
+  'the same card can be re-entered as a total'
+);
+select is((select count(*)::integer from public.score_hole_details d
+    join public.scores s on s.id = d.score_id
+    where s.team_id='b2000000-0000-4000-8000-0000000000b1'), 0,
+  'the old hole-by-hole breakdown does not survive a total that contradicts it');
 
 -- ─── Ghost scores ───────────────────────────────────────────────────────────
 select throws_ok(
