@@ -35,10 +35,18 @@ function numberInRange(value, label, min, max, { integer = false } = {}) {
   return parsed;
 }
 
-export async function initializeCourseLayoutAction() {
+export async function initializeCourseLayoutAction(formData) {
   const context = await requireAdminRole(COURSE_MANAGEMENT_ROLES);
-  await operationsRepository.initializeCourseLayout(await createClient(), { courseId: context.courseId });
+
+  // A nine-hole course that gets an eighteen-hole layout is scored against par 72
+  // all season, which drives every handicap to zero without complaining.
+  const holes = Number(formData?.get('holes')) === 9 ? 9 : 18;
+
+  await operationsRepository.initializeCourseLayout(await createClient(), {
+    courseId: context.courseId, holes,
+  });
   revalidatePath('/admin/course');
+  revalidatePath('/admin');
   return { success: true };
 }
 

@@ -7,7 +7,7 @@
 -- is where that coverage moved to.
 begin;
 set local search_path = public, extensions;
-select plan(64);
+select plan(71);
 
 -- ─── Fixture ────────────────────────────────────────────────────────────────
 insert into auth.users(
@@ -98,6 +98,15 @@ insert into public.substitutes(id,course_id,league_id,name,handicap,status) valu
    'b1000000-0000-4000-8000-0000000000b1','Weak',20.0,'available'),
   ('b3000000-0000-4000-8000-0000000000b9','d0000000-0000-4000-8000-00000000d001',
    'd1000000-0000-4000-8000-00000000d001','Outsider',5.0,'available');
+
+-- Two bare courses for the layout builder: one to build nine holes on, one to
+-- reject an impossible hole count against.
+insert into public.courses(id,name,city,state) values
+  ('f0000000-0000-4000-8000-0000000000f1','Nine Hole Setup','Auburn','IN'),
+  ('f0000000-0000-4000-8000-0000000000f2','Bad Hole Count','Auburn','IN');
+insert into public.course_memberships(course_id,user_id,email,role,status) values
+  ('f0000000-0000-4000-8000-0000000000f1','10000000-0000-4000-8000-000000000001','owner@example.com','course_owner','active'),
+  ('f0000000-0000-4000-8000-0000000000f2','10000000-0000-4000-8000-000000000001','owner@example.com','course_owner','active');
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-000000000001","email":"owner@example.com","role":"authenticated"}';
@@ -311,6 +320,42 @@ select throws_ok(
        "substituteId":"b3000000-0000-4000-8000-0000000000b9"}]'::jsonb)$$,
   'P0001','Unknown substitute for this league',
   'a substitute from another league cannot be borrowed, handicap and all'
+);
+
+-- ─── A nine-hole course gets a nine-hole layout ─────────────────────────────
+-- The setup button used to build eighteen holes whatever the course was. A
+-- nine-hole course was then scored against par 72, every handicap clamped to
+-- zero, and the season played to scratch without a word of warning.
+select lives_ok(
+  $$select public.initialize_course_layout('f0000000-0000-4000-8000-0000000000f1', 9)$$,
+  'a nine-hole layout can be created'
+);
+select is((select count(*)::integer from public.course_holes
+    where course_id='f0000000-0000-4000-8000-0000000000f1'), 9,
+  'nine holes, not eighteen');
+select is((select sum(par)::integer from public.course_holes
+    where course_id='f0000000-0000-4000-8000-0000000000f1'), 36,
+  'par 36, which is what the handicap is worked out against');
+select ok(
+  (select count(distinct stroke_index)=9 and min(stroke_index)=1 and max(stroke_index)=9
+   from public.course_holes where course_id='f0000000-0000-4000-8000-0000000000f1'),
+  'every stroke index from 1 to 9 is used exactly once'
+);
+select ok(
+  (select max(course_rating) < 45 from public.course_tee_boxes
+   where course_id='f0000000-0000-4000-8000-0000000000f1'),
+  'the tees are rated for nine holes, not eighteen'
+);
+select throws_ok(
+  $$select public.initialize_course_layout('f0000000-0000-4000-8000-0000000000f1', 18)$$,
+  'P0001',
+  'This course already has a 9 hole layout. Edit the holes directly rather than rebuilding, so the scores recorded against them are not stranded.',
+  'rebuilding at the wrong size is refused rather than stranding recorded scores'
+);
+select throws_ok(
+  $$select public.initialize_course_layout('f0000000-0000-4000-8000-0000000000f2', 12)$$,
+  'P0001','A course layout has either 9 or 18 holes',
+  'a layout is nine or eighteen holes and nothing else'
 );
 
 -- ─── Closing and removing a workspace ───────────────────────────────────────

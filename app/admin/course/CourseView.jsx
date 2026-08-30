@@ -55,7 +55,7 @@ export default function CourseView({ courseDetails, weather, teeTimes, currentWe
       {/* ─── TABS ───────────────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--color-border)', paddingBottom: '0.5rem', marginBottom: '2rem', overflowX: 'auto' }}>
         {[
-          { id: 'holes', label: `18-Hole Layout (${stats.totalPar} Par)`, icon: FlagstickIcon },
+          { id: 'holes', label: `${stats.totalHoles || 18}-Hole Layout (${stats.totalPar} Par)`, icon: FlagstickIcon },
           { id: 'tees', label: `Tee Boxes & USGA Ratings (${teeBoxes.length})`, icon: TargetIcon },
           { id: 'teetimes', label: `Shotgun Starting Times`, icon: CalendarIcon },
           { id: 'profile', label: `Club Profile & Local Rules`, icon: SettingsIcon },
@@ -95,19 +95,48 @@ export default function CourseView({ courseDetails, weather, teeTimes, currentWe
       {activeTab === 'holes' && (holes.length === 0 ? (
         <form action={initializeCourseLayoutAction} className="birvo-card" style={{ padding: '2.5rem', textAlign: 'center', background: '#ffffff' }}>
           <h2 style={{ margin: 0, color: 'var(--color-text-main)', fontSize: '1.5rem' }}>The course layout has not been created yet</h2>
-          <p style={{ maxWidth: '580px', margin: '12px auto 24px', color: 'var(--color-text-muted)', lineHeight: 1.65 }}>
-            Birvo can create 18 editable holes and four starter tee sets. Nothing is written until you select the button below.
+          <p style={{ maxWidth: '580px', margin: '12px auto 20px', color: 'var(--color-text-muted)', lineHeight: 1.65 }}>
+            Birvo can create editable holes and four starter tee sets. Every par, stroke
+            index and rating stays editable afterwards. Nothing is written until you
+            choose below.
           </p>
-          <button type="submit" className="birvo-btn-primary">Create default layout</button>
+
+          {/* Handicaps are worked out against the course's par, so a nine-hole course
+              given an eighteen-hole layout has every golfer scored against par 72. */}
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+            {[
+              { value: 18, title: '18 holes', detail: 'Par 72, four tees rated for eighteen' },
+              { value: 9, title: '9 holes', detail: 'Par 36, four tees rated for nine' },
+            ].map(option => (
+              <label key={option.value} style={{
+                display: 'flex', flexDirection: 'column', gap: '4px', cursor: 'pointer',
+                padding: '1rem 1.25rem', borderRadius: '12px', border: '1px solid var(--color-border)',
+                background: 'var(--color-bg-subtle)', minWidth: '210px', textAlign: 'left',
+              }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 800, color: 'var(--color-text-main)' }}>
+                  <input type="radio" name="holes" value={option.value} defaultChecked={option.value === 18} />
+                  {option.title}
+                </span>
+                <span style={{ fontSize: '.82rem', color: 'var(--color-text-muted)', paddingLeft: '24px' }}>
+                  {option.detail}
+                </span>
+              </label>
+            ))}
+          </div>
+
+          <button type="submit" className="birvo-btn-primary">Create layout</button>
         </form>
       ) : (
         <form action={saveHoles}>
           <div className="birvo-card" style={{ padding: '1.5rem', marginBottom: '2rem', background: '#ffffff' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
-                <h2 className="title-primary" style={{ fontSize: '1.3rem', margin: 0 }}>18-Hole Par & Handicap Stroke Index Layout</h2>
+                <h2 className="title-primary" style={{ fontSize: '1.3rem', margin: 0 }}>
+                  {stats.totalHoles}-Hole Par &amp; Handicap Stroke Index Layout
+                </h2>
                 <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
-                  Front 9: {stats.front9Par} Par | Back 9: {stats.back9Par} Par | 18-Hole Total: <strong style={{ color: 'var(--color-text-main)' }}>{stats.totalPar} Par</strong>
+                  {stats.totalHoles > 9 && <>Front 9: {stats.front9Par} Par | Back 9: {stats.back9Par} Par | </>}
+                  {stats.totalHoles}-Hole Total: <strong style={{ color: 'var(--color-text-main)' }}>{stats.totalPar} Par</strong>
                 </p>
               </div>
               <button type="submit" className="birvo-btn-primary" style={{ padding: '9px 20px' }}>

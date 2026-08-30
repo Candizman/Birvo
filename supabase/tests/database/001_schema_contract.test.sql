@@ -71,7 +71,7 @@ select has_function('public','lock_round_and_advance',array['uuid','uuid','integ
 select has_function('public','request_score_correction',array['uuid','uuid','integer','text']);
 select has_function('public','review_score_correction',array['uuid','uuid','text','text']);
 select has_function('public','rotate_public_link',array['uuid','uuid','text']);
-select has_function('public','initialize_course_layout',array['uuid']);
+select has_function('public','initialize_course_layout',array['uuid','integer']);
 select has_function('public','update_course_profile',array['uuid','text','text','text','text','text','text','text']);
 select has_function('public','save_course_holes',array['uuid','jsonb']);
 select has_function('public','upsert_course_tee_box',array['uuid','uuid','text','text','text','numeric','integer','integer']);
@@ -195,7 +195,7 @@ select ok(
 );
 select is(
   (select schema_version from public.app_metadata where key='database'),
-  24,
+  25,
   'database schema marker is at the expected version'
 );
 
