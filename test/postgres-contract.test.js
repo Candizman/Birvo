@@ -13,7 +13,7 @@ const publishingRepository = require('../lib/data/supabase/publishingRepository'
 const { createPublicAccessToken } = require('../lib/publicAccess');
 const { SupabaseDataError } = require('../lib/data/supabase/errors');
 const persistentRateLimit = require('../lib/data/persistentRateLimit');
-const { getSupabaseHealthSnapshot } = require('../lib/data/supabase/healthRepository');
+const { getSupabaseHealthSnapshot, EXPECTED_POSTGRES_SCHEMA_VERSION } = require('../lib/data/supabase/healthRepository');
 
 const UUIDS = Object.freeze({
   user: '10000000-0000-4000-8000-000000000001',
@@ -639,15 +639,33 @@ test('PostgreSQL production contract', async t => {
     const query = {
       select(value) { calls.push(['select', value]); return query; },
       eq(column, value) { calls.push(['eq', column, value]); return query; },
-      async maybeSingle() { return { data: { schema_version: 4 }, error: null }; },
+      async maybeSingle() { return { data: { schema_version: EXPECTED_POSTGRES_SCHEMA_VERSION }, error: null }; },
     };
     const snapshot = await getSupabaseHealthSnapshot({
       from(table) { calls.push(['from', table]); return query; },
     });
     assert.equal(snapshot.ready, true);
-    assert.deepEqual(snapshot.schemaVersion, { current: 4, expected: 4 });
+    assert.deepEqual(snapshot.schemaVersion, {
+      current: EXPECTED_POSTGRES_SCHEMA_VERSION, expected: EXPECTED_POSTGRES_SCHEMA_VERSION,
+    });
     assert.deepEqual(calls[0], ['from', 'app_metadata']);
     assert.equal(JSON.stringify(calls).match(/course|league|user/gi), null);
+  });
+
+  // EXPECTED_POSTGRES_SCHEMA_VERSION is a hand-maintained constant, and it drifted
+  // silently for 24 migrations (stuck at 4 while the real schema reached 27) --
+  // /api/health reported "unavailable" that whole time and nobody noticed. This
+  // reads every migration file directly rather than trusting the constant, so a
+  // future migration that bumps schema_version without updating the constant
+  // fails a test instead of just lying to a health check.
+  await t.test('the expected schema version matches the newest migration on disk', () => {
+    const migrationsDir = path.join(process.cwd(), 'supabase', 'migrations');
+    const declaredVersions = fs.readdirSync(migrationsDir)
+      .filter(name => name.endsWith('.sql'))
+      .flatMap(name => [...fs.readFileSync(path.join(migrationsDir, name), 'utf8')
+        .matchAll(/schema_version\s*=\s*(\d+)/gi)].map(match => Number(match[1])));
+    const newestDeclaredVersion = Math.max(...declaredVersions);
+    assert.equal(EXPECTED_POSTGRES_SCHEMA_VERSION, newestDeclaredVersion);
   });
 
   await t.test('PostgreSQL readiness failures disclose no provider details', async () => {

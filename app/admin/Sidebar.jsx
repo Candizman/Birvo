@@ -13,6 +13,7 @@ import {
   SparklesIcon,
   PrinterIcon,
   ReceiptIcon,
+  DollarSignIcon,
   SettingsIcon,
   TrashIcon,
   SearchIcon,
@@ -53,6 +54,7 @@ const getNavGroups = (leagueId, standingsToken, role) => {
   {
     group: 'Administration',
     items: [
+      canManageCourse ? { name: 'Treasury', href: '/admin/treasury', icon: DollarSignIcon } : null,
       canManageCourse ? { name: 'Operations settings', href: '/admin/settings', icon: SettingsIcon } : null,
       canManageCourse ? { name: 'Plans & billing', href: '/admin/billing', icon: ReceiptIcon } : null,
       canManageCourse ? { name: 'Archived leagues', href: '/admin/trash', icon: TrashIcon } : null,

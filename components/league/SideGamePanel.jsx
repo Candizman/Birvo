@@ -20,10 +20,15 @@ export default function SideGamePanel({ sideGame }) {
   );
 
   if (sideGame.type === 'skins') {
-    const { winners = [], carriedOver = 0 } = sideGame;
+    const { winners = [], carriedOver = 0, potCents, carriedOverCents } = sideGame;
+    const hasMoney = typeof potCents === 'number';
+    const formatDollars = cents => `$${(cents / 100).toFixed(2)}`;
+
     return shell(
       'Skins',
-      'One skin a hole, lowest net wins it, and a halved hole carries into the next.',
+      hasMoney
+        ? `One skin a hole, lowest net wins it, and a halved hole carries into the next. Pot this week: ${formatDollars(potCents)}.`
+        : 'One skin a hole, lowest net wins it, and a halved hole carries into the next.',
       <>
         {winners.length === 0 ? (
           <p style={{ margin: 0, color: 'var(--color-text-muted)', fontSize: '.9rem' }}>
@@ -37,10 +42,15 @@ export default function SideGamePanel({ sideGame }) {
                 padding: '.6rem .9rem', borderRadius: '10px', background: 'var(--color-bg-subtle)',
               }}>
                 <span style={{ fontWeight: 700, color: 'var(--color-text-main)' }}>{winner.name}</span>
-                <span style={{ fontWeight: 900, color: '#059669' }}>
-                  {winner.skins} <span style={{ fontSize: '.72rem', color: 'var(--color-text-subtle)' }}>
-                    {winner.skins === 1 ? 'SKIN' : 'SKINS'}
+                <span style={{ display: 'flex', alignItems: 'baseline', gap: '.5rem' }}>
+                  <span style={{ fontWeight: 900, color: '#059669' }}>
+                    {winner.skins} <span style={{ fontSize: '.72rem', color: 'var(--color-text-subtle)' }}>
+                      {winner.skins === 1 ? 'SKIN' : 'SKINS'}
+                    </span>
                   </span>
+                  {hasMoney && (
+                    <span style={{ fontWeight: 900, color: '#059669' }}>{formatDollars(winner.payoutCents)}</span>
+                  )}
                 </span>
               </li>
             ))}
@@ -50,7 +60,8 @@ export default function SideGamePanel({ sideGame }) {
           <p style={{ margin: '.9rem 0 0', fontSize: '.84rem', color: '#92400e', background: '#fef3c7',
                       border: '1px solid #fde68a', borderRadius: '10px', padding: '.6rem .9rem' }}>
             The last hole was halved, so <strong>{carriedOver}</strong>{' '}
-            {carriedOver === 1 ? 'skin is' : 'skins are'} unclaimed. Most leagues carry that into next week —
+            {carriedOver === 1 ? 'skin is' : 'skins are'} unclaimed
+            {hasMoney ? ` (${formatDollars(carriedOverCents)})` : ''}. Most leagues carry that into next week —
             Birvo reports it rather than deciding for you.
           </p>
         )}
