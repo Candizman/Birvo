@@ -1,12 +1,9 @@
-import db from '../../lib/database';
 import { submitPlayerScore } from './actions';
-import { getLeagueStandings } from '../../lib/services/standingsService';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { getPlayerSession } from '../../lib/auth';
-import dataBackend from '../../lib/data/backend';
-import playerRepository from '../../lib/data/supabase/playerRepository';
 import { createAdminClient } from '../../lib/supabase/admin';
+import { getPlayerHome } from '../../lib/services/playerService';
 import {
   FlagstickIcon,
   TrophyIcon,
@@ -18,9 +15,6 @@ import {
   ShieldCheckIcon
 } from '../../components/icons/GolfIcons';
 
-const { DATA_BACKENDS, resolveDataBackend } = dataBackend;
-const { getPlayerHome } = playerRepository;
-
 export default async function PlayerMobile() {
   const session = await getPlayerSession();
 
@@ -29,57 +23,12 @@ export default async function PlayerMobile() {
   }
 
   const teamId = session.teamId;
-  const activeDataBackend = resolveDataBackend();
-  let team;
-  let league;
-  let course;
-  let currentMatch;
-  let opponentName = 'Not assigned';
-  let teamSeasonData = null;
+  const adminClient = createAdminClient();
+  const home = await getPlayerHome(adminClient, teamId);
+  if (!home) redirect('/player/login');
 
-  if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-    const adminClient = createAdminClient();
-    let home = null;
-    try {
-      home = adminClient ? await getPlayerHome(adminClient, teamId) : null;
-    } catch {
-      home = null;
-    }
-    if (!home) redirect('/player/login');
-    ({ team, league, course } = home);
-    currentMatch = home.fixture ? { ...home.fixture, starting_hole: home.startingHole } : null;
-    opponentName = home.opponentName;
-  } else {
-    team = db.prepare(
-      "SELECT id, name, current_handicap, league_id, course_id FROM teams WHERE id = ? AND status = 'active'"
-    ).get(teamId);
-    if (!team) redirect('/player/login');
-    league = db.prepare(
-      "SELECT id, name, current_week, course_id FROM leagues WHERE id = ? AND status = 'active'"
-    ).get(team.league_id);
-    course = league ? db.prepare('SELECT name FROM courses WHERE id = ?').get(league.course_id) : null;
-    if (!league || !course || Number(team.course_id) !== Number(league.course_id)) redirect('/player/login');
-
-    const standingsData = getLeagueStandings(db, team.league_id);
-    teamSeasonData = standingsData?.seasonStandings?.find(item => item.id === team.id) || null;
-    currentMatch = db.prepare(`
-      SELECT f.*, t1.name AS team1_name, t2.name AS team2_name,
-        tt.starting_hole, tt.start_time
-      FROM match_fixtures f
-      LEFT JOIN teams t1 ON f.team1_id = t1.id
-      LEFT JOIN teams t2 ON f.team2_id = t2.id
-      LEFT JOIN tee_times tt ON tt.league_id = f.league_id
-        AND tt.week_number = f.week_number
-        AND (tt.team1_id = ? OR tt.team2_id = ?)
-      WHERE f.league_id = ? AND f.week_number = ?
-        AND (f.team1_id = ? OR f.team2_id = ?)
-      ORDER BY f.id ASC LIMIT 1
-    `).get(team.id, team.id, team.league_id, league.current_week, team.id, team.id);
-    opponentName = currentMatch
-      ? (currentMatch.team1_id === team.id ? currentMatch.team2_name : currentMatch.team1_name) || 'Open / Bye'
-      : 'Not assigned';
-  }
-
+  const { team, league, course, opponentName, teamSeasonData, fixture, startingHole } = home;
+  const currentMatch = fixture ? { ...fixture, starting_hole: startingHole } : null;
   const currentWeek = league.current_week;
 
   return (

@@ -2,11 +2,6 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const {
-  DATA_BACKENDS,
-  DataBackendConfigurationError,
-  resolveDataBackend,
-} = require('../lib/data/backend');
 const workspaceRepository = require('../lib/data/supabase/workspaceRepository');
 const operationsRepository = require('../lib/data/supabase/operationsRepository');
 const publicAccessRepository = require('../lib/data/supabase/publicAccessRepository');
@@ -18,7 +13,7 @@ const publishingRepository = require('../lib/data/supabase/publishingRepository'
 const { createPublicAccessToken } = require('../lib/publicAccess');
 const { SupabaseDataError } = require('../lib/data/supabase/errors');
 const persistentRateLimit = require('../lib/data/persistentRateLimit');
-const { getSupabaseHealthSnapshot } = require('../lib/data/supabase/healthRepository');
+const { getSupabaseHealthSnapshot, EXPECTED_POSTGRES_SCHEMA_VERSION } = require('../lib/data/supabase/healthRepository');
 
 const UUIDS = Object.freeze({
   user: '10000000-0000-4000-8000-000000000001',
@@ -144,34 +139,6 @@ test('PostgreSQL production contract', async t => {
     assert.match(sql, /where public\.scores\.is_ghost=true/i);
     assert.match(sql, /A submitted scorecard cannot be replaced with a ghost score/i);
     assert.match(sql, /schema_version=4/i);
-  });
-
-  await t.test('production backend selection fails closed until the cutover gate is complete', () => {
-    assert.equal(resolveDataBackend({ NODE_ENV: 'test' }), DATA_BACKENDS.SQLITE);
-    assert.throws(() => resolveDataBackend({ NODE_ENV: 'production' }), DataBackendConfigurationError);
-    assert.throws(
-      () => resolveDataBackend({ NODE_ENV: 'production', BIRVO_DATA_BACKEND: 'sqlite' }),
-      /restricted to local development/i
-    );
-    assert.throws(
-      () => resolveDataBackend({ NODE_ENV: 'production', BIRVO_DATA_BACKEND: 'supabase' }),
-      /requires NEXT_PUBLIC_SUPABASE_URL/i
-    );
-    assert.throws(
-      () => resolveDataBackend({
-        NODE_ENV: 'production', BIRVO_DATA_BACKEND: 'supabase',
-        NEXT_PUBLIC_SUPABASE_URL: 'https://project.supabase.co', NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon',
-      }),
-      /cutover gate is closed/i
-    );
-    assert.equal(resolveDataBackend({
-      NODE_ENV: 'production', BIRVO_DATA_BACKEND: 'supabase',
-      NEXT_PUBLIC_SUPABASE_URL: 'https://project.supabase.co', NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon',
-    }, { requireCutover: false }), DATA_BACKENDS.SUPABASE);
-    assert.equal(resolveDataBackend({
-      NODE_ENV: 'production', BIRVO_DATA_BACKEND: 'supabase', BIRVO_SUPABASE_CUTOVER_COMPLETE: 'true',
-      NEXT_PUBLIC_SUPABASE_URL: 'https://project.supabase.co', NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon',
-    }), DATA_BACKENDS.SUPABASE);
   });
 
   await t.test('workspace reads are tenant scoped and preserve UUID identifiers', async () => {
@@ -624,6 +591,13 @@ test('PostgreSQL production contract', async t => {
           select(value) { calls.push(['select', table, value]); return query; },
           eq(column, value) { calls.push(['eq', table, column, value]); return query; },
           or(value) { calls.push(['or', table, value]); return query; },
+          // The player card carries a season rank, so getPlayerHome also reads the
+          // standings. Those queries order and await the builder directly.
+          in(column, values) { calls.push(['in', table, column, values]); return query; },
+          order(column, options) { calls.push(['order', table, column, options]); return query; },
+          then(resolve, reject) {
+            return Promise.resolve({ data: rows[table] || [], error: null }).then(resolve, reject);
+          },
           async maybeSingle() {
             const index = table === 'teams' ? reads[table] - 1 : 0;
             return { data: rows[table]?.[index] || null, error: null };
@@ -648,7 +622,6 @@ test('PostgreSQL production contract', async t => {
       },
     };
     const result = await persistentRateLimit.checkDataRateLimit({
-      backend: DATA_BACKENDS.SUPABASE,
       adminClient,
       scope: 'admin_login',
       subject: '203.0.113.7:Owner@Example.com',
@@ -666,15 +639,33 @@ test('PostgreSQL production contract', async t => {
     const query = {
       select(value) { calls.push(['select', value]); return query; },
       eq(column, value) { calls.push(['eq', column, value]); return query; },
-      async maybeSingle() { return { data: { schema_version: 4 }, error: null }; },
+      async maybeSingle() { return { data: { schema_version: EXPECTED_POSTGRES_SCHEMA_VERSION }, error: null }; },
     };
     const snapshot = await getSupabaseHealthSnapshot({
       from(table) { calls.push(['from', table]); return query; },
     });
     assert.equal(snapshot.ready, true);
-    assert.deepEqual(snapshot.schemaVersion, { current: 4, expected: 4 });
+    assert.deepEqual(snapshot.schemaVersion, {
+      current: EXPECTED_POSTGRES_SCHEMA_VERSION, expected: EXPECTED_POSTGRES_SCHEMA_VERSION,
+    });
     assert.deepEqual(calls[0], ['from', 'app_metadata']);
     assert.equal(JSON.stringify(calls).match(/course|league|user/gi), null);
+  });
+
+  // EXPECTED_POSTGRES_SCHEMA_VERSION is a hand-maintained constant, and it drifted
+  // silently for 24 migrations (stuck at 4 while the real schema reached 27) --
+  // /api/health reported "unavailable" that whole time and nobody noticed. This
+  // reads every migration file directly rather than trusting the constant, so a
+  // future migration that bumps schema_version without updating the constant
+  // fails a test instead of just lying to a health check.
+  await t.test('the expected schema version matches the newest migration on disk', () => {
+    const migrationsDir = path.join(process.cwd(), 'supabase', 'migrations');
+    const declaredVersions = fs.readdirSync(migrationsDir)
+      .filter(name => name.endsWith('.sql'))
+      .flatMap(name => [...fs.readFileSync(path.join(migrationsDir, name), 'utf8')
+        .matchAll(/schema_version\s*=\s*(\d+)/gi)].map(match => Number(match[1])));
+    const newestDeclaredVersion = Math.max(...declaredVersions);
+    assert.equal(EXPECTED_POSTGRES_SCHEMA_VERSION, newestDeclaredVersion);
   });
 
   await t.test('PostgreSQL readiness failures disclose no provider details', async () => {

@@ -240,10 +240,16 @@ a {
   transition: all 0.15s ease-in-out;
 }
 
-.birvo-btn-primary:hover {
+.birvo-btn-primary:hover,
+.birvo-btn-primary:focus-visible {
   background-color: var(--color-primary-hover);
   transform: translateY(-1px);
   box-shadow: 0 12px 24px rgba(29, 122, 95, 0.28);
+  outline: none;
+}
+
+.birvo-btn-primary:focus-visible {
+  box-shadow: 0 0 0 4px rgba(29, 122, 95, 0.4), 0 12px 24px rgba(29, 122, 95, 0.28);
 }
 
 .birvo-btn-primary:active {
@@ -267,10 +273,16 @@ a {
   transition: all 0.15s ease-in-out;
 }
 
-.birvo-btn-secondary:hover {
+.birvo-btn-secondary:hover,
+.birvo-btn-secondary:focus-visible {
   background-color: var(--color-bg-subtle);
-  border-color: #cbd5e1;
+  border-color: #a4b3ac;
   color: var(--color-text-main) !important;
+  outline: none;
+}
+
+.birvo-btn-secondary:focus-visible {
+  box-shadow: 0 0 0 4px rgba(29, 122, 95, 0.2);
 }
 
 /* ─── PGA Tour Score Badges ──────────────────────────────────────────────── */

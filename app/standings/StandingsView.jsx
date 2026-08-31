@@ -9,6 +9,8 @@ import {
   UserIcon,
   CalendarIcon
 } from '../../components/icons/GolfIcons';
+import SideGamePanel from '../../components/league/SideGamePanel';
+import { weekFormatColumn } from '../../components/league/weekFormatColumn';
 
 export default function StandingsView({ standingsData, playerAccessToken = null, isPreview = false }) {
   const [activeTab, setActiveTab] = useState('overall'); // 'overall' or weekNumber (number)
@@ -80,6 +82,8 @@ export default function StandingsView({ standingsData, playerAccessToken = null,
   };
 
   const currentWeekMatch = weeklyResultsList.find(w => w.weekNumber === activeTab);
+
+  const formatColumn = weekFormatColumn(currentWeekMatch?.scoringBasis);
 
   return (
     <div style={{ maxWidth: '1080px', margin: '0 auto', padding: '1rem clamp(0.75rem, 3vw, 1.5rem) 4rem' }}>
@@ -170,7 +174,7 @@ export default function StandingsView({ standingsData, playerAccessToken = null,
             COMPLETED WEEKS
           </div>
           <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#059669' }}>
-            {summary.completedWeeks} / {summary.totalWeeks}
+            {summary.completedWeeks} / {summary.seasonLengthWeeks}
           </div>
           <div style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>Weeks with completed scoring</div>
         </div>
@@ -288,6 +292,9 @@ export default function StandingsView({ standingsData, playerAccessToken = null,
                   <th style={{ padding: '12px 10px', textAlign: 'center' }}>Gross</th>
                   <th style={{ padding: '12px 10px', textAlign: 'center' }}>Handicap</th>
                   <th style={{ padding: '12px 10px', textAlign: 'center' }}>Net Score</th>
+                  {formatColumn && (
+                    <th style={{ padding: '12px 10px', textAlign: 'center' }}>{formatColumn.header}</th>
+                  )}
                   <th style={{ padding: '12px 10px', textAlign: 'right' }}>Points Earned</th>
                 </tr>
               </thead>
@@ -297,10 +304,16 @@ export default function StandingsView({ standingsData, playerAccessToken = null,
                     <td style={{ padding: '12px 10px' }}>{getRankBadge(team.rank)}</td>
                     <td style={{ padding: '12px 10px', fontWeight: 700, color: 'var(--color-text-main)' }}>
                       {team.name} {team.isGhost && <span title="League-average ghost score" style={{ marginLeft: 6, padding: '2px 6px', borderRadius: 999, background: '#fef3c7', color: '#92400e', fontSize: '.68rem' }}>GHOST</span>}
+                      {team.playedBySubstitute && <span title="Played by a substitute, so the round scores for the league but is left out of this team's handicap" style={{ marginLeft: 6, padding: '2px 6px', borderRadius: 999, background: '#fffbeb', color: '#b45309', fontSize: '.68rem' }}>SUB</span>}
                     </td>
                     <td style={{ padding: '12px 10px', textAlign: 'center', color: 'var(--color-text-muted)' }}>{team.currentGross}</td>
                     <td style={{ padding: '12px 10px', textAlign: 'center', color: 'var(--color-text-muted)' }}>{team.handicap !== null ? team.handicap.toFixed(1) : '-'}</td>
                     <td style={{ padding: '12px 10px', textAlign: 'center', color: '#0284c7', fontWeight: 700 }}>{team.netScore !== null ? team.netScore.toFixed(1) : '-'}</td>
+                    {formatColumn && (
+                      <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 700, color: 'var(--color-text-main)' }}>
+                        {formatColumn.value(team)}
+                      </td>
+                    )}
                     <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: 900, fontSize: '1.15rem', color: '#059669' }}>
                       {team.pointsEarned.toFixed(1)} <span style={{ fontSize: '0.72rem', color: 'var(--color-text-subtle)' }}>PTS</span>
                     </td>
@@ -313,8 +326,20 @@ export default function StandingsView({ standingsData, playerAccessToken = null,
               No scorecards have been recorded for this week yet.
             </div>
           )}
+
+          {/* The league's format could not be applied to this round, and saying so
+              is better than showing a net ranking as though it were stableford. */}
+          {currentWeekMatch?.holeDataMissing && currentWeekMatch.scoresEnteredCount > 0 && (
+            <p style={{ margin: '1rem 0 0', fontSize: '.82rem', color: '#92400e', background: '#fef3c7',
+                        border: '1px solid #fde68a', borderRadius: '10px', padding: '.6rem .9rem' }}>
+              {summary.format.label} is scored hole by hole. This round has only total
+              scores, so it was ranked on net.
+            </p>
+          )}
         </div>
       )}
+
+      {activeTab !== 'overall' && <SideGamePanel sideGame={currentWeekMatch?.sideGame} />}
 
       {/* ─── NAVIGATION FOOTER ───────────────────────────────────────────────────── */}
       <footer style={{ marginTop: '3rem', textAlign: 'center', display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>

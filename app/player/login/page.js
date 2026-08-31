@@ -1,52 +1,31 @@
 import Link from 'next/link';
 import BrandMark from '../../../components/BrandMark';
-import db from '../../../lib/database';
-import { hasPublicLeagueAccess } from '../../../lib/publicAccess';
 import styles from '../../login/login.module.css';
 import { playerLogin } from './actions';
-import dataBackend from '../../../lib/data/backend';
 import entityIds from '../../../lib/security/entityId';
 import publicAccessRepository from '../../../lib/data/supabase/publicAccessRepository';
 import playerRepository from '../../../lib/data/supabase/playerRepository';
 import { createAdminClient } from '../../../lib/supabase/admin';
 
-const { DATA_BACKENDS, resolveDataBackend } = dataBackend;
 const { UUID_PATTERN, normalizeEntityId } = entityIds;
 const { validatePublicLeagueAccess } = publicAccessRepository;
 const { getActiveLeagueContext, listActiveLeagueTeams } = playerRepository;
 
 export default async function PlayerLoginPage({ searchParams }) {
   const params = await searchParams;
-  const activeDataBackend = resolveDataBackend();
-  let leagueId = normalizeEntityId(params?.leagueId);
-
-  if (activeDataBackend === DATA_BACKENDS.SQLITE && (!leagueId || !Number.isSafeInteger(Number(leagueId))) && process.env.NODE_ENV !== 'production') {
-    leagueId = db.prepare("SELECT id FROM leagues WHERE status = 'active' ORDER BY id ASC LIMIT 1").get()?.id;
-  }
+  const leagueId = normalizeEntityId(params?.leagueId);
 
   let league = null;
   let teams = [];
   try {
-    if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-      if (leagueId && UUID_PATTERN.test(String(leagueId))) {
-        const adminClient = createAdminClient();
-        const allowed = adminClient && await validatePublicLeagueAccess(
-          adminClient, params?.access, { leagueId, purpose: 'player' }
-        );
-        const context = allowed ? await getActiveLeagueContext(adminClient, leagueId) : null;
-        league = context?.league || null;
-        teams = league ? await listActiveLeagueTeams(adminClient, leagueId) : [];
-      }
-    } else {
-      leagueId = Number(leagueId);
-      const allowed = Number.isSafeInteger(leagueId) && leagueId > 0
-        && hasPublicLeagueAccess(params?.access, { leagueId, purpose: 'player', db });
-      league = allowed
-        ? db.prepare("SELECT name FROM leagues WHERE id = ? AND status = 'active'").get(leagueId)
-        : null;
-      teams = league
-        ? db.prepare("SELECT id, name FROM teams WHERE league_id = ? AND status = 'active' ORDER BY name").all(leagueId)
-        : [];
+    if (leagueId && UUID_PATTERN.test(String(leagueId))) {
+      const adminClient = createAdminClient();
+      const allowed = adminClient && await validatePublicLeagueAccess(
+        adminClient, params?.access, { leagueId, purpose: 'player' }
+      );
+      const context = allowed ? await getActiveLeagueContext(adminClient, leagueId) : null;
+      league = context?.league || null;
+      teams = league ? await listActiveLeagueTeams(adminClient, leagueId) : [];
     }
   } catch {
     league = null;
@@ -97,6 +76,11 @@ export default async function PlayerLoginPage({ searchParams }) {
               />
             </label>
             <button type="submit" className="birvo-btn-primary">Open player portal</button>
+            <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+              <Link href={`/player/login/forgot-pin?leagueId=${leagueId}&access=${params?.access || ''}`} style={{ color: 'var(--color-primary)', fontSize: '0.9rem', fontWeight: 600 }}>
+                Forgot your PIN?
+              </Link>
+            </div>
           </form>
         ) : (
           <div className={styles.invalidLink} role="status">

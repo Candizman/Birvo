@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import db from '../../../../../lib/database';
 import { generateCSVExport } from '../../../../../lib/services/reportService';
 import { getAdminContext } from '../../../../../lib/auth';
 
@@ -16,12 +15,16 @@ export async function GET(request, { params }) {
     return NextResponse.json({ error: 'Invalid League ID' }, { status: 400 });
   }
 
-  const league = db.prepare("SELECT id, name FROM leagues WHERE id = ? AND course_id = ?").get(id, context.courseId);
-  if (!league) {
+  const { createAdminClient } = require('../../../../../lib/supabase/admin');
+  const adminClient = createAdminClient();
+  const { getLeague } = require('../../../../../lib/services/leagueService');
+
+  const league = await getLeague(adminClient, id);
+  if (!league || league.course_id !== context.courseId) {
     return NextResponse.json({ error: 'League not found' }, { status: 404 });
   }
 
-  const csv = generateCSVExport(db, id);
+  const csv = await generateCSVExport(adminClient, id);
 
   return new Response(csv, {
     status: 200,

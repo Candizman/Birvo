@@ -1,5 +1,5 @@
 .checklist {
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
   border-color: #ead7ba;
   background: #fffdf7;
 }
@@ -13,43 +13,49 @@
 
 .eyebrow {
   color: #80511b;
-  font-size: 0.72rem;
-  font-weight: 850;
+  font-size: 0.9rem;
+  font-weight: 800;
   letter-spacing: 0.08em;
 }
 
 .header h2 {
-  margin: 5px 0 3px;
-  font-size: 1.25rem;
+  margin: 6px 0 6px;
+  font-size: 1.4rem;
 }
 
 .header p {
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 0.88rem;
+  font-size: 1.05rem;
 }
 
 .percentage {
   color: #176b45;
-  font-size: 1.15rem;
+  font-size: 1.25rem;
 }
 
 .progress {
-  margin: 15px 0;
+  margin: 20px 0;
 }
 
 .steps {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 9px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
 }
 
 .step {
-  padding: 10px 11px;
+  padding: 14px 16px;
   border: 1px solid #e5e7eb;
-  border-radius: 10px;
+  border-radius: 12px;
   color: inherit;
   background: #fff;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.step:focus-within {
+  border-color: #1d7a5f;
+  box-shadow: 0 0 0 3px rgba(29, 122, 95, 0.2);
 }
 
 .stepComplete { background: #f0faf5; }
@@ -57,8 +63,8 @@
 .stepTitle {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.84rem;
+  gap: 10px;
+  font-size: 1.05rem;
   font-weight: 800;
 }
 
@@ -66,8 +72,8 @@
 .stepComplete .stepStatus { color: #176b45; }
 
 .stepDescription {
-  margin: 4px 0 0 21px;
+  margin: 6px 0 0 28px;
   color: var(--color-text-muted);
-  font-size: 0.73rem;
-  line-height: 1.4;
+  font-size: 0.95rem;
+  line-height: 1.5;
 }

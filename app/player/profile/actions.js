@@ -1,20 +1,11 @@
 'use server'
 
-import db from '../../../lib/database';
 import { getPlayerSession } from '../../../lib/auth';
-import {
-  updatePlayerProfile as updateSqlitePlayerProfile,
-  addClubToBag,
-  deleteClubFromBag,
-  saveRoundNote,
-} from '../../../lib/services/playerService';
-import dataBackend from '../../../lib/data/backend';
 import entityIds from '../../../lib/security/entityId';
 import operationsRepository from '../../../lib/data/supabase/operationsRepository';
 import { createAdminClient } from '../../../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 
-const { DATA_BACKENDS, resolveDataBackend } = dataBackend;
 const { UUID_PATTERN, normalizeEntityId } = entityIds;
 const {
   addPlayerBagClub,
@@ -23,12 +14,10 @@ const {
   updatePlayerProfile,
 } = operationsRepository;
 
-function parseEntityId(value, backend) {
+function parseEntityId(value) {
   const normalized = normalizeEntityId(value);
   if (!normalized) return null;
-  if (backend === DATA_BACKENDS.SUPABASE) return UUID_PATTERN.test(normalized) ? normalized : null;
-  const numeric = Number(normalized);
-  return Number.isSafeInteger(numeric) && numeric > 0 ? numeric : null;
+  return UUID_PATTERN.test(normalized) ? normalized : null;
 }
 
 async function requirePlayerTeam() {
@@ -49,26 +38,15 @@ export async function saveProfileAction(formData) {
     return { error: 'Check the profile fields and try again.' };
   }
 
-  const activeDataBackend = resolveDataBackend();
   try {
-    if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-      await updatePlayerProfile(createAdminClient(), {
-        teamId,
-        bio,
-        favoriteClub,
-        handicapGoal,
-        themePreference,
-        language: 'en-US',
-      });
-    } else {
-      updateSqlitePlayerProfile(db, teamId, {
-        bio,
-        favoriteClub,
-        handicapGoal,
-        themePreference,
-        language: 'en-US',
-      });
-    }
+    await updatePlayerProfile(createAdminClient(), {
+      teamId,
+      bio,
+      favoriteClub,
+      handicapGoal,
+      themePreference,
+      language: 'en-US',
+    });
     revalidatePath('/player/profile');
     revalidatePath('/player');
     return { success: true };
@@ -88,13 +66,8 @@ export async function addClubAction(formData) {
     return { error: 'Enter a valid club name and carry distance in yards.' };
   }
 
-  const activeDataBackend = resolveDataBackend();
   try {
-    if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-      await addPlayerBagClub(createAdminClient(), { teamId, clubName, brand, avgDistanceYards });
-    } else {
-      addClubToBag(db, teamId, { clubName, brand, avgDistanceYards });
-    }
+    await addPlayerBagClub(createAdminClient(), { teamId, clubName, brand, avgDistanceYards });
     revalidatePath('/player/profile');
     return { success: true };
   } catch {
@@ -105,15 +78,10 @@ export async function addClubAction(formData) {
 export async function deleteClubAction(formData) {
   const teamId = await requirePlayerTeam();
   if (!teamId) return { error: 'Authentication required.' };
-  const activeDataBackend = resolveDataBackend();
-  const clubId = parseEntityId(formData.get('clubId'), activeDataBackend);
+  const clubId = parseEntityId(formData.get('clubId'));
   if (!clubId) return { error: 'The selected club is invalid.' };
   try {
-    if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-      await deletePlayerBagClub(createAdminClient(), { teamId, clubId });
-    } else {
-      deleteClubFromBag(db, teamId, clubId);
-    }
+    await deletePlayerBagClub(createAdminClient(), { teamId, clubId });
     revalidatePath('/player/profile');
     return { success: true };
   } catch {
@@ -130,13 +98,8 @@ export async function addRoundNoteAction(formData) {
     || notes.length < 1 || notes.length > 5000) {
     return { error: 'Enter a valid week and note.' };
   }
-  const activeDataBackend = resolveDataBackend();
   try {
-    if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-      await savePlayerRoundNote(createAdminClient(), { teamId, weekNumber, notes });
-    } else {
-      saveRoundNote(db, teamId, weekNumber, notes);
-    }
+    await savePlayerRoundNote(createAdminClient(), { teamId, weekNumber, notes });
     revalidatePath('/player/profile');
     return { success: true };
   } catch {

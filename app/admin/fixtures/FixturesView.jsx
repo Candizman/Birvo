@@ -166,7 +166,10 @@ export default function FixturesView({ league, fixtures, substitutes, rsvps, tee
 
             <form action={generateFixturesAction} style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>Weeks:</span>
-              <input type="number" name="totalWeeks" defaultValue="10" min="2" max="30" style={{ width: '60px', padding: '8px', background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', color: 'var(--color-text-main)', borderRadius: '6px', textAlign: 'center', fontWeight: 700 }} />
+              {/* Defaults to the season the league was configured for. Generating a
+                  schedule overwrites season_length_weeks, so a fixed default here
+                  silently shortened the season the operator had already chosen. */}
+              <input type="number" name="totalWeeks" defaultValue={league?.season_length_weeks || 10} min="2" max="52" style={{ width: '60px', padding: '8px', background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', color: 'var(--color-text-main)', borderRadius: '6px', textAlign: 'center', fontWeight: 700 }} />
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--color-text-main)', cursor: 'pointer', fontWeight: 600 }}>
                 <input type="checkbox" name="doubleRound" style={{ accentColor: '#059669' }} />
                 <span>Double Round-Robin</span>

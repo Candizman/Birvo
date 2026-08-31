@@ -1,14 +1,8 @@
-import db from '../../../lib/database';
 import { getPlayerSession } from '../../../lib/auth';
 import { redirect } from 'next/navigation';
 import LiveTrackerView from './LiveTrackerView';
 import Link from 'next/link';
-import dataBackend from '../../../lib/data/backend';
-import playerRepository from '../../../lib/data/supabase/playerRepository';
 import { createAdminClient } from '../../../lib/supabase/admin';
-
-const { DATA_BACKENDS, resolveDataBackend } = dataBackend;
-const { getPlayerLiveScorecard } = playerRepository;
 
 export default async function PlayerLiveTrackerPage() {
   const session = await getPlayerSession();
@@ -16,51 +10,12 @@ export default async function PlayerLiveTrackerPage() {
     redirect('/player/login');
   }
 
-  const activeDataBackend = resolveDataBackend();
-  let team;
-  let match;
-  let courseHoles = [];
-  let existingScore = null;
-  let existingHoleDetails = {};
-
-  if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-    let scorecard = null;
-    try {
-      const adminClient = createAdminClient();
-      scorecard = adminClient ? await getPlayerLiveScorecard(adminClient, session.teamId) : null;
-    } catch {
-      scorecard = null;
-    }
-    if (!scorecard) redirect('/player/login');
-    ({ team, match, courseHoles, existingScore, existingHoleDetails } = scorecard);
-  } else {
-    team = db.prepare(`
-      SELECT t.id,t.name,t.current_handicap,t.league_id,t.course_id,
-        l.current_week,l.name AS league_name
-      FROM teams t
-      JOIN leagues l ON t.league_id = l.id AND t.course_id = l.course_id
-      WHERE t.id = ? AND t.status = 'active' AND l.status = 'active'
-    `).get(session.teamId);
-    if (!team) redirect('/player/login');
-    match = db.prepare(`
-      SELECT m.*
-      FROM matches m
-      JOIN match_fixtures f ON f.league_id = m.league_id AND f.week_number = m.week_number
-      WHERE m.league_id = ? AND m.week_number = ?
-        AND (f.team1_id = ? OR f.team2_id = ?)
-      ORDER BY f.id ASC LIMIT 1
-    `).get(team.league_id, team.current_week, team.id, team.id);
-    courseHoles = db.prepare(`
-      SELECT * FROM course_holes WHERE course_id = ? ORDER BY hole_number ASC
-    `).all(team.course_id);
-    existingScore = match
-      ? db.prepare('SELECT * FROM scores WHERE match_id = ? AND team_id = ?').get(match.id, team.id)
-      : null;
-    if (existingScore) {
-      const details = db.prepare('SELECT * FROM score_hole_details WHERE score_id = ?').all(existingScore.id);
-      existingHoleDetails = Object.fromEntries(details.map(item => [item.hole_number, item]));
-    }
-  }
+  const adminClient = createAdminClient();
+  const { getPlayerLiveScorecard } = require('../../../lib/services/playerService');
+  const scorecard = await getPlayerLiveScorecard(adminClient, session.teamId);
+  if (!scorecard) redirect('/player/login');
+  
+  const { team, match, courseHoles, existingScore, existingHoleDetails } = scorecard;
 
   if (!match) {
     return (

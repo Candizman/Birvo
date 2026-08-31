@@ -1,6 +1,6 @@
-import db from '../../../lib/database';
 import { getAdminContext, COURSE_MANAGEMENT_ROLES, hasAdminRole } from '../../../lib/auth';
 import { getBillingDetails } from '../../../lib/services/billingService';
+import { createClient } from '../../../lib/supabase/server';
 import EmptyState from '../../../components/ui/EmptyState';
 import { CheckIcon, ReceiptIcon, ShieldCheckIcon } from '../../../components/icons/GolfIcons';
 
@@ -42,7 +42,7 @@ export default async function BillingPage() {
     );
   }
 
-  const billing = getBillingDetails(db, context.courseId);
+  const billing = await getBillingDetails(await createClient(), context.courseId);
   if (!billing) {
     return (
       <EmptyState

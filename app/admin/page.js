@@ -1,13 +1,8 @@
-import db from '../../lib/database';
 import { getAdminContext } from '../../lib/auth';
-import { getLeagueStandings } from '../../lib/services/standingsService';
+import { indefiniteArticleForNumber } from '../../lib/format/article';
 import Link from 'next/link';
 import EmptyState from '../../components/ui/EmptyState';
-import { createPublicAccessToken, getPublicLinkVersion as getLocalPublicLinkVersion } from '../../lib/publicAccess';
-import { getCourseSetupProgress } from '../../lib/services/courseSetupService';
-import dataBackend from '../../lib/data/backend';
-import dashboardRepository from '../../lib/data/supabase/dashboardRepository';
-import publicAccessRepository from '../../lib/data/supabase/publicAccessRepository';
+import { createPublicAccessToken } from '../../lib/publicAccess';
 import { createClient } from '../../lib/supabase/server';
 import SetupChecklist from '../../components/ui/SetupChecklist';
 import ProgressBar from '../../components/ui/ProgressBar';
@@ -15,6 +10,8 @@ import StatCard from '../../components/ui/StatCard';
 import RankBadge from '../../components/ui/RankBadge';
 import ScoreFeed from '../../components/ui/ScoreFeed';
 import AlertBanner from '../../components/ui/AlertBanner';
+import SideGamePanel from '../../components/league/SideGamePanel';
+import { weekFormatColumn } from '../../components/league/weekFormatColumn';
 import {
   FlagstickIcon,
   TrophyIcon,
@@ -25,8 +22,6 @@ import {
   ShieldCheckIcon,
 } from '../../components/icons/GolfIcons';
 import styles from './dashboard.module.css';
-
-const { DATA_BACKENDS, resolveDataBackend } = dataBackend;
 
 export default async function AdminDashboard() {
   const context = await getAdminContext();
@@ -57,14 +52,11 @@ export default async function AdminDashboard() {
     );
   }
 
-  const activeDataBackend = resolveDataBackend();
-  const supabase = activeDataBackend === DATA_BACKENDS.SUPABASE ? await createClient() : null;
-  const dashboardSnapshot = supabase && context.leagueId
-    ? await dashboardRepository.getAdminDashboardSnapshot(supabase, { courseId, leagueId: context.leagueId })
-    : null;
-  const course = supabase
-    ? (dashboardSnapshot?.course || await dashboardRepository.getScopedCourse(supabase, courseId))
-    : db.prepare("SELECT name, city, state, postal_code, timezone, primary_color FROM courses WHERE id = ?").get(courseId);
+  const supabase = await createClient();
+  const { getAdminDashboard } = require('../../lib/services/dashboardService');
+  const dashboardData = await getAdminDashboard(supabase, courseId, context.leagueId);
+  const course = dashboardData.course;
+
   if (!course) {
     return (
       <EmptyState
@@ -76,11 +68,7 @@ export default async function AdminDashboard() {
     );
   }
 
-  const league = context.leagueId
-    ? (dashboardSnapshot?.league || (!supabase
-        ? db.prepare("SELECT id, name, current_week, game_format, season_length_weeks FROM leagues WHERE id = ? AND course_id = ? AND status = 'active'").get(context.leagueId, courseId)
-        : null))
-    : null;
+  const league = dashboardData.league;
   if (!league) {
     return (
       <EmptyState
@@ -96,39 +84,21 @@ export default async function AdminDashboard() {
     );
   }
 
-  const standingsData = dashboardSnapshot?.standingsData || getLeagueStandings(db, league.id);
-  const setupProgress = dashboardSnapshot?.setupProgress || getCourseSetupProgress(db, courseId, league.id);
-  const linkVersions = supabase
-    ? await publicAccessRepository.getPublicLinkVersions(supabase, { courseId, leagueId: league.id, purposes: ['standings', 'tv'] })
-    : {
-        standings: getLocalPublicLinkVersion(db, league.id, 'standings'),
-        tv: getLocalPublicLinkVersion(db, league.id, 'tv'),
-      };
+  const standingsData = dashboardData.standingsData;
+  const setupProgress = dashboardData.setupProgress;
+  const linkVersions = dashboardData.linkVersions;
   const standingsToken = createPublicAccessToken({ leagueId: league.id, purpose: 'standings', version: linkVersions.standings });
   const tvToken = createPublicAccessToken({ leagueId: league.id, purpose: 'tv', version: linkVersions.tv });
   const { totalActiveTeams, seasonStandings, weeklyResultsList, summary } = standingsData;
 
   const currentWeekData = weeklyResultsList.find(w => w.weekNumber === weekNumber);
   const weekResults = currentWeekData ? currentWeekData.results : [];
+  const formatColumn = weekFormatColumn(currentWeekData?.scoringBasis);
   const scoresEnteredCount = currentWeekData ? currentWeekData.scoresEnteredCount : 0;
   const completionPct = totalActiveTeams > 0 ? Math.round((scoresEnteredCount / totalActiveTeams) * 100) : 0;
 
-  const needsReviewCount = dashboardSnapshot?.needsReviewCount ?? db.prepare(`
-      SELECT COUNT(*) as c FROM scores s
-      JOIN matches m ON s.match_id = m.id
-      WHERE m.league_id = ? AND s.reconciliation_status = 'needs_review'
-    `).get(league.id).c;
-
-  // Recent scores feed with details
-  const recentScores = dashboardSnapshot?.recentScores || db.prepare(`
-      SELECT s.gross_score, s.net_score, s.attestation_status, s.reconciliation_status, s.created_at, t.name as team_name, t.current_handicap
-      FROM scores s
-      JOIN teams t ON s.team_id = t.id
-      JOIN matches m ON s.match_id = m.id
-      WHERE m.league_id = ?
-      ORDER BY s.created_at DESC
-      LIMIT 5
-    `).all(league.id);
+  const needsReviewCount = dashboardData.needsReviewCount;
+  const recentScores = dashboardData.recentScores;
 
   return (
     <div className={styles.page}>
@@ -146,7 +116,7 @@ export default async function AdminDashboard() {
             {league.name}
           </h1>
           <p className={styles.leagueMeta}>
-            Week {weekNumber} of a {summary.totalWeeks}-week season • Format: <strong className={styles.leagueMetaStrong}>{league.game_format.replace('_', ' ')}</strong> • {totalActiveTeams} active teams
+            Week {weekNumber} of {indefiniteArticleForNumber(summary.seasonLengthWeeks)} {summary.seasonLengthWeeks}-week season • Format: <strong className={styles.leagueMetaStrong}>{summary.format.label}</strong> • {totalActiveTeams} active teams
           </p>
         </div>
 
@@ -207,12 +177,32 @@ export default async function AdminDashboard() {
         />
         <StatCard
           label="Schedule Progress"
-          value={`${summary.completedWeeks} / ${summary.totalWeeks}`}
+          value={`${summary.completedWeeks} / ${summary.seasonLengthWeeks}`}
           description="Completed weeks"
           labelColor="#065f46"
           valueColor="#059669"
         />
       </div>
+
+      {/* ─── FORMAT NOT RUNNING ─────────────────────────────────────────────────── */}
+      {/* Scored as something other than what the league is set to, which the
+          league is entitled to be told rather than left to discover. */}
+      {summary.format.roundsMissingHoleScores.length > 0 && (
+        <div className={styles.alertSection}>
+          <AlertBanner
+            variant="warning"
+            actionHref="/admin/leagues"
+            actionLabel="Change the format →"
+          >
+            <strong>{summary.format.label} is scored hole by hole.</strong>{' '}
+            {summary.format.roundsMissingHoleScores.length === 1
+              ? `Week ${summary.format.roundsMissingHoleScores[0]} has`
+              : `Weeks ${summary.format.roundsMissingHoleScores.join(', ')} have`}{' '}
+            only a total score, so {summary.format.roundsMissingHoleScores.length === 1 ? 'it was' : 'they were'}{' '}
+            scored as net stroke play. Hole-by-hole scores arrive when players post their own cards.
+          </AlertBanner>
+        </div>
+      )}
 
       {/* ─── AUDIT & DISPUTE ALERTS ─────────────────────────────────────────────── */}
       {needsReviewCount > 0 && (
@@ -249,6 +239,7 @@ export default async function AdminDashboard() {
                   <th>Team</th>
                   <th style={{ textAlign: 'center' }}>Gross</th>
                   <th style={{ textAlign: 'center' }}>Net</th>
+                  {formatColumn && <th style={{ textAlign: 'center' }}>{formatColumn.header}</th>}
                   <th style={{ textAlign: 'right' }}>Points</th>
                 </tr>
               </thead>
@@ -256,9 +247,22 @@ export default async function AdminDashboard() {
                 {[...weekResults].sort((a, b) => (b.pointsEarned || 0) - (a.pointsEarned || 0)).map((team, idx) => (
                   <tr key={team.id} className={idx % 2 === 0 ? styles.standingsTableRowEven : styles.standingsTableRow}>
                     <td style={{ padding: '12px 10px' }}><RankBadge rank={team.rank} /></td>
-                    <td className={styles.teamName} style={{ padding: '12px 10px' }}>{team.name}</td>
+                    <td className={styles.teamName} style={{ padding: '12px 10px' }}>
+                      {team.name}
+                      {team.playedBySubstitute && (
+                        <span title="Played by a substitute: the round scores for the league but is left out of this team's handicap"
+                          style={{ marginLeft: 6, padding: '2px 6px', borderRadius: 999, background: '#fffbeb', color: '#b45309', fontSize: '.68rem', fontWeight: 800 }}>
+                          SUB
+                        </span>
+                      )}
+                    </td>
                     <td className={styles.grossScore} style={{ padding: '12px 10px' }}>{team.currentGross}</td>
                     <td className={styles.netScore} style={{ padding: '12px 10px' }}>{team.netScore !== null ? team.netScore.toFixed(1) : '-'}</td>
+                    {formatColumn && (
+                      <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 700 }}>
+                        {formatColumn.value(team)}
+                      </td>
+                    )}
                     <td className={styles.points} style={{ padding: '12px 10px' }}>
                       {team.pointsEarned.toFixed(1)} <span className={styles.pointsUnit}>PTS</span>
                     </td>
@@ -271,6 +275,8 @@ export default async function AdminDashboard() {
               No scores have been entered for this week yet.
             </div>
           )}
+
+          <SideGamePanel sideGame={currentWeekData?.sideGame} />
         </div>
 
         {/* Recent Score Activity & Attestation Feed */}

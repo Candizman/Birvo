@@ -1,24 +1,12 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import db from '../../../lib/database';
 import { requireAdminRole, COURSE_MANAGEMENT_ROLES } from '../../../lib/auth';
-import dataBackend from '../../../lib/data/backend';
 import operationsRepository from '../../../lib/data/supabase/operationsRepository';
 import entityIds from '../../../lib/security/entityId';
 import { createClient } from '../../../lib/supabase/server';
-import {
-  addTVSponsor as addLocalTVSponsor,
-  deleteTVSponsor as deleteLocalTVSponsor,
-  saveTVDisplaySettings as saveLocalTVDisplaySettings,
-} from '../../../lib/services/tvService';
 
-const { DATA_BACKENDS, resolveDataBackend } = dataBackend;
 const { normalizeEntityId } = entityIds;
-
-function persistenceId(value, backend) {
-  return backend === DATA_BACKENDS.SUPABASE ? normalizeEntityId(value) : Number(value);
-}
 
 function refreshPublishingPages(leagueId) {
   revalidatePath('/admin/publishing');
@@ -35,7 +23,8 @@ export async function saveDisplayAction(previousState, formData) {
       return { error: 'Rotation time must be between 3 and 120 seconds.' };
     }
     if (announcementText.length > 500) return { error: 'Announcement cannot exceed 500 characters.' };
-    const settings = {
+
+    await operationsRepository.saveTVDisplaySettings(await createClient(), {
       courseId: context.courseId,
       leagueId: context.leagueId,
       actorUserId: context.user.id,
@@ -45,13 +34,7 @@ export async function saveDisplayAction(previousState, formData) {
       announcementText,
       celebrationEffects: formData.get('celebrationEffects') === 'on',
       soundEnabled: formData.get('soundEnabled') === 'on',
-    };
-    const backend = resolveDataBackend();
-    if (backend === DATA_BACKENDS.SUPABASE) {
-      await operationsRepository.saveTVDisplaySettings(await createClient(), settings);
-    } else {
-      saveLocalTVDisplaySettings(db, settings);
-    }
+    });
     refreshPublishingPages(context.leagueId);
     return { success: 'Clubhouse display settings saved.' };
   } catch (error) {
@@ -71,20 +54,15 @@ export async function addSponsorAction(previousState, formData) {
       return { error: 'Logo URL must use HTTPS or a site-relative path.' };
     }
     if (!Number.isInteger(displayOrder) || displayOrder < 0 || displayOrder > 1000) return { error: 'Display order must be between 0 and 1000.' };
-    const sponsor = {
+
+    await operationsRepository.addTVSponsor(await createClient(), {
       courseId: context.courseId,
       leagueId: context.leagueId,
       actorUserId: context.user.id,
       name,
       logoUrl,
       displayOrder,
-    };
-    const backend = resolveDataBackend();
-    if (backend === DATA_BACKENDS.SUPABASE) {
-      await operationsRepository.addTVSponsor(await createClient(), sponsor);
-    } else {
-      addLocalTVSponsor(db, sponsor);
-    }
+    });
     refreshPublishingPages(context.leagueId);
     return { success: `${name} added to the partner rotation.` };
   } catch (error) {
@@ -96,20 +74,15 @@ export async function deleteSponsorAction(previousState, formData) {
   try {
     const context = await requireAdminRole(COURSE_MANAGEMENT_ROLES);
     if (!context.leagueId) throw new Error('No active league is available.');
-    const backend = resolveDataBackend();
-    const sponsorId = persistenceId(formData.get('sponsorId'), backend);
+    const sponsorId = normalizeEntityId(formData.get('sponsorId'));
     if (!sponsorId) return { error: 'Invalid partner selection.' };
-    const input = {
+
+    await operationsRepository.deleteTVSponsor(await createClient(), {
       courseId: context.courseId,
       leagueId: context.leagueId,
       actorUserId: context.user.id,
       sponsorId,
-    };
-    if (backend === DATA_BACKENDS.SUPABASE) {
-      await operationsRepository.deleteTVSponsor(await createClient(), input);
-    } else {
-      deleteLocalTVSponsor(db, input);
-    }
+    });
     refreshPublishingPages(context.leagueId);
     return { success: 'Partner removed.' };
   } catch (error) {

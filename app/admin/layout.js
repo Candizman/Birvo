@@ -2,9 +2,7 @@ import { getAdminContext } from '../../lib/auth';
 import Sidebar from './Sidebar';
 import CommandPalette from '../../components/ui/CommandPalette';
 import { ToastProvider } from '../../components/ui/ToastContext';
-import { createPublicAccessToken, getPublicLinkVersion as getLocalPublicLinkVersion } from '../../lib/publicAccess';
-import db from '../../lib/database';
-import dataBackend from '../../lib/data/backend';
+import { createPublicAccessToken } from '../../lib/publicAccess';
 import publicAccessRepository from '../../lib/data/supabase/publicAccessRepository';
 import { createClient } from '../../lib/supabase/server';
 import { switchCourseAction, switchLeagueAction } from './actions';
@@ -13,23 +11,15 @@ import styles from './adminLayout.module.css';
 
 export const dynamic = 'force-dynamic';
 
-const { DATA_BACKENDS, resolveDataBackend } = dataBackend;
-
 export default async function AdminLayout({ children }) {
   const context = await getAdminContext();
   let linkVersions = null;
   if (context?.courseId && context?.leagueId) {
-    const activeDataBackend = resolveDataBackend();
-    linkVersions = activeDataBackend === DATA_BACKENDS.SUPABASE
-      ? await publicAccessRepository.getPublicLinkVersions(await createClient(), {
-          courseId: context.courseId,
-          leagueId: context.leagueId,
-          purposes: ['standings', 'tv'],
-        })
-      : {
-          standings: getLocalPublicLinkVersion(db, context.leagueId, 'standings'),
-          tv: getLocalPublicLinkVersion(db, context.leagueId, 'tv'),
-        };
+    linkVersions = await publicAccessRepository.getPublicLinkVersions(await createClient(), {
+      courseId: context.courseId,
+      leagueId: context.leagueId,
+      purposes: ['standings', 'tv'],
+    });
   }
   const standingsToken = context?.leagueId ? createPublicAccessToken({ leagueId: context.leagueId, purpose: 'standings', version: linkVersions?.standings || 1 }) : null;
   const tvToken = context?.leagueId ? createPublicAccessToken({ leagueId: context.leagueId, purpose: 'tv', version: linkVersions?.tv || 1 }) : null;

@@ -1,17 +1,20 @@
 'use server'
-import db from '../../../lib/database';
 import { requireAdminRole, COURSE_MANAGEMENT_ROLES } from '../../../lib/auth';
 import { revalidatePath } from 'next/cache';
+import trashRepository from '../../../lib/data/supabase/trashRepository';
+import { createAdminClient } from '../../../lib/supabase/admin';
+import entityId from '../../../lib/security/entityId';
+
+const { normalizeEntityId } = entityId;
 
 export async function restoreLeague(formData) {
   const context = await requireAdminRole(COURSE_MANAGEMENT_ROLES);
+  const leagueId = normalizeEntityId(formData.get('leagueId'));
+  if (!leagueId) return { error: 'Select a valid league.' };
 
-  const leagueId = parseInt(formData.get('leagueId'));
-  const courseId = context.courseId;
-
-  const restore = db.prepare("UPDATE leagues SET status = 'active' WHERE id = ? AND course_id = ? AND status = 'trashed'");
-  restore.run(leagueId, courseId);
+  await trashRepository.restoreLeague(createAdminClient(), leagueId, context.courseId);
 
   revalidatePath('/admin/trash');
+  revalidatePath('/admin/leagues');
   return { success: true };
 }

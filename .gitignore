@@ -27,3 +27,6 @@ birvo.db-shm
 # Typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Supabase CLI scratch
+supabase/.temp/

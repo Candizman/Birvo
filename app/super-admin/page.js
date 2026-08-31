@@ -1,25 +1,14 @@
-import db from '../../lib/database';
 import {
   ShieldCheckIcon,
   FlagstickIcon,
 } from '../../components/icons/GolfIcons';
+import superAdminRepository from '../../lib/data/supabase/superAdminRepository';
+import { createAdminClient } from '../../lib/supabase/admin';
 
 export default async function SuperAdminDashboard() {
-  // Fetch all courses
-  const courses = db.prepare('SELECT id, name, city FROM courses').all();
+  const coursesWithStats = await superAdminRepository.getPlatformStats(createAdminClient());
 
-  // Statistics for each course
-  const coursesWithStats = courses.map(course => {
-    const leaguesCount = db.prepare('SELECT COUNT(*) as count FROM leagues WHERE course_id = ?').get(course.id).count;
-    const teamsCount = db.prepare(`
-      SELECT COUNT(*) as count FROM teams t
-      JOIN leagues l ON t.league_id = l.id
-      WHERE l.course_id = ?
-    `).get(course.id).count;
-    return { ...course, leaguesCount, teamsCount };
-  });
-
-  const totalCourses = courses.length;
+  const totalCourses = coursesWithStats.length;
   const totalLeagues = coursesWithStats.reduce((acc, c) => acc + c.leaguesCount, 0);
   const totalTeams = coursesWithStats.reduce((acc, c) => acc + c.teamsCount, 0);
 

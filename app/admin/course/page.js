@@ -1,13 +1,9 @@
-import db from '../../../lib/database';
 import { getAdminContext, COURSE_MANAGEMENT_ROLES, hasAdminRole } from '../../../lib/auth';
-import { getCourseDetails, getCourseWeather, getTeeTimes } from '../../../lib/services/courseService';
+import { getCourseWeather } from '../../../lib/services/courseService';
 import CourseView from './CourseView';
 import EmptyState from '../../../components/ui/EmptyState';
-import dataBackend from '../../../lib/data/backend';
 import courseRepository from '../../../lib/data/supabase/courseRepository';
 import { createClient } from '../../../lib/supabase/server';
-
-const { DATA_BACKENDS, resolveDataBackend } = dataBackend;
 
 export default async function CourseManagementPage() {
   const context = await getAdminContext();
@@ -47,11 +43,8 @@ export default async function CourseManagementPage() {
     );
   }
 
-  const activeDataBackend = resolveDataBackend();
-  const supabase = activeDataBackend === DATA_BACKENDS.SUPABASE ? await createClient() : null;
-  const courseDetails = supabase
-    ? await courseRepository.getCourseManagementDetails(supabase, context.courseId)
-    : getCourseDetails(db, context.courseId);
+  const supabase = await createClient();
+  const courseDetails = await courseRepository.getCourseManagementDetails(supabase, context.courseId);
   if (!courseDetails) {
     return (
       <EmptyState
@@ -65,13 +58,11 @@ export default async function CourseManagementPage() {
 
   const weather = getCourseWeather(courseDetails.course.weather_lat, courseDetails.course.weather_lon);
   const teeTimes = context.leagueId
-    ? (supabase
-        ? await courseRepository.getLeagueTeeTimes(supabase, {
-            courseId: context.courseId,
-            leagueId: context.leagueId,
-            weekNumber: context.currentWeek,
-          })
-        : getTeeTimes(db, context.leagueId, context.currentWeek))
+    ? await courseRepository.getLeagueTeeTimes(supabase, {
+        courseId: context.courseId,
+        leagueId: context.leagueId,
+        weekNumber: context.currentWeek,
+      })
     : [];
 
   return (

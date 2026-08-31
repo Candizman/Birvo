@@ -1,31 +1,18 @@
 'use server'
 
-import db from '../../../lib/database';
 import { getPlayerSession } from '../../../lib/auth';
-import { submitHoleByHoleScore, attestScore, disputeScore } from '../../../lib/services/liveScoringService';
-import { hashTeamPin, isHashedTeamPin, verifyTeamPin } from '../../../lib/security/pin';
-import dataBackend from '../../../lib/data/backend';
 import entityIds from '../../../lib/security/entityId';
-import playerRepository from '../../../lib/data/supabase/playerRepository';
-import operationsRepository from '../../../lib/data/supabase/operationsRepository';
 import { createAdminClient } from '../../../lib/supabase/admin';
+import liveScoringService from '../../../lib/services/liveScoringService';
 import { revalidatePath } from 'next/cache';
 
-const { DATA_BACKENDS, resolveDataBackend } = dataBackend;
 const { UUID_PATTERN, normalizeEntityId } = entityIds;
-const { getPlayerScoreOpponent } = playerRepository;
-const {
-  attestPlayerScore,
-  submitPlayerHoleScorecard,
-  upgradePlayerPinHash,
-} = operationsRepository;
+const { submitLiveRound: submitLiveRoundToDb, attestOwnScore, disputeScore } = liveScoringService;
 
-function parseEntityId(value, backend) {
+function parseEntityId(value) {
   const normalized = normalizeEntityId(value);
   if (!normalized) return null;
-  if (backend === DATA_BACKENDS.SUPABASE) return UUID_PATTERN.test(normalized) ? normalized : null;
-  const numeric = Number(normalized);
-  return Number.isSafeInteger(numeric) && numeric > 0 ? numeric : null;
+  return UUID_PATTERN.test(normalized) ? normalized : null;
 }
 
 function readHoleDetails(formData) {
@@ -53,8 +40,7 @@ export async function submitLiveRound(formData) {
   const session = await getPlayerSession();
   if (!session?.teamId) return { error: 'Authentication required.' };
 
-  const activeDataBackend = resolveDataBackend();
-  const matchId = parseEntityId(formData.get('matchId'), activeDataBackend);
+  const matchId = parseEntityId(formData.get('matchId'));
   const weekNumber = Number(formData.get('weekNumber'));
   const photoUrl = formData.get('photoUrl')?.trim() || null;
   const holes = readHoleDetails(formData);
@@ -62,131 +48,46 @@ export async function submitLiveRound(formData) {
     return { error: 'Enter a valid score for every published hole.' };
   }
 
-  if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-    try {
-      const adminClient = createAdminClient();
-      const result = await submitPlayerHoleScorecard(adminClient, {
-        teamId: session.teamId,
-        matchId,
-        holes,
-        photoUrl,
-      });
-      revalidatePath('/player');
-      revalidatePath('/player/live-tracker');
-      revalidatePath('/standings');
-      return { success: true, ...result };
-    } catch {
-      return { error: 'The scorecard could not be saved. Confirm that the round is open and try again.' };
-    }
-  }
-
-  const assignedMatch = db.prepare(`
-    SELECT m.id
-    FROM matches m
-    JOIN teams t ON t.id = ? AND t.league_id = m.league_id
-    JOIN match_fixtures f ON f.league_id = m.league_id AND f.week_number = m.week_number
-    WHERE m.id = ? AND m.week_number = ? AND (f.team1_id = t.id OR f.team2_id = t.id)
-  `).get(session.teamId, matchId, weekNumber);
-  if (!assignedMatch) return { error: 'This scorecard is not assigned to your team.' };
-
   try {
-    const result = submitHoleByHoleScore(db, {
-      matchId,
-      teamId: session.teamId,
-      weekNumber,
-      holeDetails: holes.map(item => ({
-        hole_number: item.holeNumber,
-        gross_score: item.grossScore,
-        putts: item.putts,
-        fairway_hit: item.fairwayHit,
-        sand_saves: item.sandSave,
-        penalty_strokes: item.penaltyStrokes,
-      })),
-      photoUrl,
-      modifiedBy: `player-${session.teamId}`,
-    });
+    const result = await submitLiveRoundToDb(createAdminClient(), session, matchId, weekNumber, holes, photoUrl);
     revalidatePath('/player');
     revalidatePath('/player/live-tracker');
     revalidatePath('/standings');
     return { success: true, ...result };
-  } catch {
-    return { error: 'The scorecard could not be saved. Confirm that the round is open and try again.' };
+  } catch (error) {
+    return { error: error.message || 'The scorecard could not be saved. Confirm that the round is open and try again.' };
   }
 }
 
 export async function attestOwnScoreAction(formData) {
   const session = await getPlayerSession();
   if (!session?.teamId) return { error: 'Authentication required.' };
-  const activeDataBackend = resolveDataBackend();
-  const scoreId = parseEntityId(formData.get('scoreId'), activeDataBackend);
+  const scoreId = parseEntityId(formData.get('scoreId'));
   const pin = formData.get('pin')?.trim();
   if (!scoreId || !/^\d{4}$/.test(pin || '')) return { error: 'Enter the assigned opponent’s four-digit PIN.' };
 
-  if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-    try {
-      const adminClient = createAdminClient();
-      const context = await getPlayerScoreOpponent(adminClient, { teamId: session.teamId, scoreId });
-      if (!context || !verifyTeamPin(pin, context.opponent.pin)) {
-        return { error: 'The opponent PIN could not be verified.' };
-      }
-      if (!isHashedTeamPin(context.opponent.pin)) {
-        await upgradePlayerPinHash(adminClient, {
-          teamId: context.opponent.id,
-          pinHash: hashTeamPin(pin),
-        });
-      }
-      await attestPlayerScore(adminClient, {
-        teamId: session.teamId,
-        scoreId,
-        attestingTeamId: context.opponent.id,
-      });
-      revalidatePath('/player');
-      revalidatePath('/player/live-tracker');
-      revalidatePath('/standings');
-      return { success: true };
-    } catch {
-      return { error: 'The scorecard could not be attested. Try again.' };
-    }
+  try {
+    await attestOwnScore(createAdminClient(), session, scoreId, pin);
+    revalidatePath('/player');
+    revalidatePath('/player/live-tracker');
+    revalidatePath('/standings');
+    return { success: true };
+  } catch (error) {
+    return { error: error.message || 'The scorecard could not be attested. Try again.' };
   }
-
-  const opponent = db.prepare(`
-    SELECT opponent.id, opponent.pin
-    FROM scores s
-    JOIN matches m ON m.id = s.match_id
-    JOIN match_fixtures f ON f.league_id = m.league_id AND f.week_number = m.week_number
-    JOIN teams opponent ON opponent.id = CASE WHEN f.team1_id = s.team_id THEN f.team2_id ELSE f.team1_id END
-    WHERE s.id = ? AND s.team_id = ? AND (f.team1_id = s.team_id OR f.team2_id = s.team_id)
-  `).get(scoreId, session.teamId);
-  if (!opponent || !verifyTeamPin(pin, opponent.pin)) return { error: 'The opponent PIN could not be verified.' };
-  const result = attestScore(db, scoreId, opponent.id, pin);
-  if (result.error) return result;
-  revalidatePath('/player');
-  revalidatePath('/player/live-tracker');
-  revalidatePath('/standings');
-  return { success: true };
 }
 
 export async function disputeScoreAction(formData) {
   const session = await getPlayerSession();
   if (!session?.teamId) return { error: 'Authentication required.' };
-  const activeDataBackend = resolveDataBackend();
-  if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-    return { error: 'Score disputes must be submitted to the league administrator.' };
+  try {
+    const scoreId = parseEntityId(formData.get('scoreId'));
+    const reason = formData.get('reason')?.trim();
+    await disputeScore(createAdminClient(), session, scoreId, reason);
+    revalidatePath('/player');
+    revalidatePath('/admin/reconciliation');
+    return { success: true };
+  } catch (error) {
+    return { error: error.message || 'The score could not be disputed. Confirm that the round is open and try again.' };
   }
-  const scoreId = Number(formData.get('scoreId'));
-  const reason = formData.get('reason')?.trim();
-  const opponentScore = db.prepare(`
-    SELECT s.id
-    FROM scores s
-    JOIN matches m ON m.id = s.match_id
-    JOIN match_fixtures f ON f.league_id = m.league_id AND f.week_number = m.week_number
-    WHERE s.id = ? AND s.team_id != ?
-      AND (f.team1_id = ? OR f.team2_id = ?)
-      AND (f.team1_id = s.team_id OR f.team2_id = s.team_id)
-  `).get(scoreId, session.teamId, session.teamId, session.teamId);
-  if (!opponentScore) return { error: 'You cannot dispute this score.' };
-  disputeScore(db, scoreId, reason);
-  revalidatePath('/player');
-  revalidatePath('/admin/reconciliation');
-  return { success: true };
 }

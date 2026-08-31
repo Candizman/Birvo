@@ -1,6 +1,6 @@
 begin;
 set local search_path = public, extensions;
-select plan(82);
+select plan(99);
 
 -- Feature-parity tables.
 select has_table('public',name,'public.'||name||' exists') from (values
@@ -12,23 +12,23 @@ select has_table('public',name,'public.'||name||' exists') from (values
 select has_table('private','rate_limit_events','rate-limit events stay outside the exposed public schema');
 
 -- Columns required by the current Birvo domain.
-select has_column('public','courses','logo_url');
-select has_column('public','courses','weather_lat');
-select has_column('public','courses','weather_lon');
-select has_column('public','courses','currency');
-select has_column('public','leagues','game_format');
-select has_column('public','leagues','trashed_at');
-select has_column('public','leagues','playoff_bracket');
-select has_column('public','teams','pin');
-select has_column('public','teams','ghin_number');
-select has_column('public','teams','low_handicap_365');
-select has_column('public','player_bag_clubs','avg_distance_yards');
-select has_column('public','scores','attested_by_team_id');
-select has_column('public','scores','scorecard_photo_url');
-select has_column('public','scores','is_ghost');
-select has_column('public','score_hole_details','fairway_hit');
-select has_column('public','score_hole_details','gir');
-select has_column('public','score_hole_details','sand_saves');
+select has_column('public','courses','logo_url','public.courses.logo_url exists');
+select has_column('public','courses','weather_lat','public.courses.weather_lat exists');
+select has_column('public','courses','weather_lon','public.courses.weather_lon exists');
+select has_column('public','courses','currency','public.courses.currency exists');
+select has_column('public','leagues','game_format','public.leagues.game_format exists');
+select has_column('public','leagues','trashed_at','public.leagues.trashed_at exists');
+select has_column('public','leagues','playoff_bracket','public.leagues.playoff_bracket exists');
+select has_column('public','teams','pin','public.teams.pin exists');
+select has_column('public','teams','ghin_number','public.teams.ghin_number exists');
+select has_column('public','teams','low_handicap_365','public.teams.low_handicap_365 exists');
+select has_column('public','player_bag_clubs','avg_distance_yards','public.player_bag_clubs.avg_distance_yards exists');
+select has_column('public','scores','attested_by_team_id','public.scores.attested_by_team_id exists');
+select has_column('public','scores','scorecard_photo_url','public.scores.scorecard_photo_url exists');
+select has_column('public','scores','is_ghost','public.scores.is_ghost exists');
+select has_column('public','score_hole_details','fairway_hit','public.score_hole_details.fairway_hit exists');
+select has_column('public','score_hole_details','gir','public.score_hole_details.gir exists');
+select has_column('public','score_hole_details','sand_saves','public.score_hole_details.sand_saves exists');
 
 select ok(
   not exists(
@@ -71,7 +71,7 @@ select has_function('public','lock_round_and_advance',array['uuid','uuid','integ
 select has_function('public','request_score_correction',array['uuid','uuid','integer','text']);
 select has_function('public','review_score_correction',array['uuid','uuid','text','text']);
 select has_function('public','rotate_public_link',array['uuid','uuid','text']);
-select has_function('public','initialize_course_layout',array['uuid']);
+select has_function('public','initialize_course_layout',array['uuid','integer']);
 select has_function('public','update_course_profile',array['uuid','text','text','text','text','text','text','text']);
 select has_function('public','save_course_holes',array['uuid','jsonb']);
 select has_function('public','upsert_course_tee_box',array['uuid','uuid','text','text','text','numeric','integer','integer']);
@@ -88,6 +88,22 @@ select has_function('public','save_tv_display_settings',array['uuid','uuid','tex
 select has_function('public','add_tv_sponsor',array['uuid','uuid','text','text','integer']);
 select has_function('public','delete_tv_sponsor',array['uuid','uuid','uuid']);
 select has_function('public','apply_ghost_score',array['uuid','uuid','uuid','integer']);
+select has_function('public','archive_league',array['uuid','uuid']);
+select has_function('public','course_par',array['uuid']);
+select has_function('public','calculate_team_handicap',array['uuid','integer']);
+select has_function('public','set_league_handicap_method',array['uuid','uuid','text','integer']);
+select has_function('public','whs_index_from_differentials',array['numeric[]']);
+select has_function('public','league_rating',array['uuid']);
+select has_function('public','apply_provisional_handicap',array['uuid']);
+select has_function('public','hole_card_total',array['uuid','jsonb']);
+select has_function('public','substitute_playing_handicap',array['uuid','uuid']);
+select has_function('public','close_course',array['uuid']);
+select has_function('public','reopen_course',array['uuid']);
+select has_function('public','purge_course',array['uuid']);
+select has_column('public','courses','closed_at','public.courses.closed_at exists');
+select has_column('public','scores','substitute_id','public.scores.substitute_id exists');
+select has_column('public','leagues','handicap_method','public.leagues.handicap_method exists');
+select has_column('public','leagues','handicap_allowance_percent','public.leagues.handicap_allowance_percent exists');
 select has_function('public','register_player_team',array['uuid','text','numeric','text']);
 select has_function('public','upgrade_player_pin_hash',array['uuid','text']);
 select has_function('public','submit_player_gross_score',array['uuid','integer']);
@@ -166,9 +182,20 @@ select ok(
   and has_function_privilege('service_role','public.save_player_round_note(uuid,integer,text)','EXECUTE'),
   'service role can execute server-owned player operations'
 );
+
+-- These check that a team HAS a PIN, never that the caller knows it; the PIN
+-- session is verified in the Next.js route above them. Reachable by anon, they
+-- would let anybody post a card for any team id.
+select ok(
+  not has_function_privilege('anon','public.submit_player_gross_score(uuid,integer)','EXECUTE')
+  and not has_function_privilege('anon','public.submit_player_hole_scorecard(uuid,uuid,jsonb,text)','EXECUTE')
+  and not has_function_privilege('authenticated','public.submit_player_gross_score(uuid,integer)','EXECUTE')
+  and not has_function_privilege('authenticated','public.submit_player_hole_scorecard(uuid,uuid,jsonb,text)','EXECUTE'),
+  'player score submission is reachable only through the server, never from a browser'
+);
 select is(
   (select schema_version from public.app_metadata where key='database'),
-  4,
+  25,
   'database schema marker is at the expected version'
 );
 

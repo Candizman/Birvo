@@ -1,27 +1,19 @@
 'use server'
 
-import db from '../../../lib/database';
 import {
   requireAdminRole,
   COURSE_MANAGEMENT_ROLES,
   SCORING_OPERATION_ROLES,
 } from '../../../lib/auth';
-import { initializeCourseHolesAndTees, updateCourseProfile, updateCourseHolesBatch, saveTeeBox, deleteTeeBox, generateShotgunTeeTimes } from '../../../lib/services/courseService';
 import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '../../../lib/supabase/admin';
 import { createClient } from '../../../lib/supabase/server';
 import membershipService from '../../../lib/services/membershipService';
-import dataBackend from '../../../lib/data/backend';
 import persistentRateLimit from '../../../lib/data/persistentRateLimit';
 import operationsRepository from '../../../lib/data/supabase/operationsRepository';
 import entityId from '../../../lib/security/entityId';
 
-const { DATA_BACKENDS, resolveDataBackend } = dataBackend;
 const { normalizeEntityId } = entityId;
-
-function persistenceId(value, activeDataBackend) {
-  return activeDataBackend === DATA_BACKENDS.SUPABASE ? normalizeEntityId(value) : Number(value);
-}
 
 function requireText(value, label, { min = 1, max = 160 } = {}) {
   const normalized = String(value || '').trim();
@@ -43,15 +35,18 @@ function numberInRange(value, label, min, max, { integer = false } = {}) {
   return parsed;
 }
 
-export async function initializeCourseLayoutAction() {
+export async function initializeCourseLayoutAction(formData) {
   const context = await requireAdminRole(COURSE_MANAGEMENT_ROLES);
-  const activeDataBackend = resolveDataBackend();
-  if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-    await operationsRepository.initializeCourseLayout(await createClient(), { courseId: context.courseId });
-  } else {
-    initializeCourseHolesAndTees(db, context.courseId);
-  }
+
+  // A nine-hole course that gets an eighteen-hole layout is scored against par 72
+  // all season, which drives every handicap to zero without complaining.
+  const holes = Number(formData?.get('holes')) === 9 ? 9 : 18;
+
+  await operationsRepository.initializeCourseLayout(await createClient(), {
+    courseId: context.courseId, holes,
+  });
   revalidatePath('/admin/course');
+  revalidatePath('/admin');
   return { success: true };
 }
 
@@ -68,22 +63,16 @@ export async function saveCourseProfile(formData) {
   if (contact_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact_email)) throw new Error('Enter a valid contact email address.');
   if (!/^#[0-9A-Fa-f]{6}$/.test(primary_color)) throw new Error('Theme color must be a six-digit hex value.');
 
-  const input = { name, address, city, contact_email, contact_phone, primary_color, local_rules };
-  const activeDataBackend = resolveDataBackend();
-  if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-    await operationsRepository.updateCourseProfile(await createClient(), {
-      courseId: context.courseId,
-      name,
-      address,
-      city,
-      contactEmail: contact_email,
-      contactPhone: contact_phone,
-      primaryColor: primary_color,
-      localRules: local_rules,
-    });
-  } else {
-    updateCourseProfile(db, context.courseId, input);
-  }
+  await operationsRepository.updateCourseProfile(await createClient(), {
+    courseId: context.courseId,
+    name,
+    address,
+    city,
+    contactEmail: contact_email,
+    contactPhone: contact_phone,
+    primaryColor: primary_color,
+    localRules: local_rules,
+  });
 
   revalidatePath('/admin/course');
   revalidatePath('/admin');
@@ -109,12 +98,8 @@ export async function saveHoles(formData) {
     });
   }
   if (new Set(holesData.map(hole => hole.stroke_index)).size !== 18) throw new Error('Each stroke index from 1 through 18 must be used exactly once.');
-  const activeDataBackend = resolveDataBackend();
-  if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-    await operationsRepository.saveCourseHoles(await createClient(), { courseId: context.courseId, holes: holesData });
-  } else {
-    updateCourseHolesBatch(db, context.courseId, holesData);
-  }
+
+  await operationsRepository.saveCourseHoles(await createClient(), { courseId: context.courseId, holes: holesData });
 
   revalidatePath('/admin/course');
   return { success: true };
@@ -123,8 +108,7 @@ export async function saveHoles(formData) {
 export async function saveTeeBoxAction(formData) {
   const context = await requireAdminRole(COURSE_MANAGEMENT_ROLES);
 
-  const activeDataBackend = resolveDataBackend();
-  const id = formData.get('id') ? persistenceId(formData.get('id'), activeDataBackend) : null;
+  const id = formData.get('id') ? normalizeEntityId(formData.get('id')) : null;
   const name = requireText(formData.get('name'), 'Tee box name', { min: 1, max: 100 });
   const color_hex = String(formData.get('color_hex') || '#FFFFFF').trim();
   const gender = String(formData.get('gender') || 'all');
@@ -134,23 +118,16 @@ export async function saveTeeBoxAction(formData) {
   if (!/^#[0-9A-Fa-f]{6}$/.test(color_hex)) throw new Error('Tee color must be a six-digit hex value.');
   if (!['all', 'men', 'women', 'senior', 'junior'].includes(gender)) throw new Error('Select a valid tee category.');
 
-  if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-    await operationsRepository.upsertCourseTeeBox(await createClient(), {
-      courseId: context.courseId,
-      teeId: id,
-      name,
-      colorHex: color_hex,
-      gender,
-      courseRating: course_rating,
-      slopeRating: slope_rating,
-      totalYards: total_yards,
-    });
-  } else {
-    saveTeeBox(db, context.courseId, {
-      id, name, color_hex, gender, course_rating, slope_rating, total_yards,
-      total_meters: Math.round(total_yards * 0.9144),
-    });
-  }
+  await operationsRepository.upsertCourseTeeBox(await createClient(), {
+    courseId: context.courseId,
+    teeId: id,
+    name,
+    colorHex: color_hex,
+    gender,
+    courseRating: course_rating,
+    slopeRating: slope_rating,
+    totalYards: total_yards,
+  });
 
   revalidatePath('/admin/course');
   return { success: true };
@@ -159,13 +136,8 @@ export async function saveTeeBoxAction(formData) {
 export async function deleteTeeBoxAction(formData) {
   const context = await requireAdminRole(COURSE_MANAGEMENT_ROLES);
 
-  const activeDataBackend = resolveDataBackend();
-  const teeId = persistenceId(formData.get('teeId'), activeDataBackend);
-  if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-    await operationsRepository.deleteCourseTeeBox(await createClient(), { courseId: context.courseId, teeId });
-  } else if (teeId) {
-    deleteTeeBox(db, context.courseId, teeId);
-  }
+  const teeId = normalizeEntityId(formData.get('teeId'));
+  await operationsRepository.deleteCourseTeeBox(await createClient(), { courseId: context.courseId, teeId });
 
   revalidatePath('/admin/course');
   return { success: true };
@@ -177,18 +149,13 @@ export async function generateTeeTimesAction(formData) {
 
   const startTime = String(formData.get('startTime') || '09:00');
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime)) throw new Error('Enter a valid starting time.');
-  const weekNumber = context.currentWeek;
-  const activeDataBackend = resolveDataBackend();
-  if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-    await operationsRepository.generateShotgunTeeTimes(await createClient(), {
-      courseId: context.courseId,
-      leagueId: context.leagueId,
-      weekNumber,
-      startTime,
-    });
-  } else {
-    generateShotgunTeeTimes(db, context.leagueId, weekNumber, startTime);
-  }
+
+  await operationsRepository.generateShotgunTeeTimes(await createClient(), {
+    courseId: context.courseId,
+    leagueId: context.leagueId,
+    weekNumber: context.currentWeek,
+    startTime,
+  });
 
   revalidatePath('/admin/course');
   return { success: true };
@@ -199,12 +166,11 @@ export async function inviteStaffAction(previousState, formData) {
     const context = await requireAdminRole(COURSE_MANAGEMENT_ROLES);
     const email = membershipService.normalizeEmail(formData.get('email'));
     const role = membershipService.validateInvitableRole(formData.get('role'));
-    const activeDataBackend = resolveDataBackend();
     const admin = createAdminClient();
     if (!admin) return { error: 'Staff email delivery is not configured. Add SUPABASE_SECRET_KEY to the server environment.' };
 
     const rateLimit = await persistentRateLimit.checkDataRateLimit({
-      backend: activeDataBackend, sqliteDb: db, adminClient: admin,
+      adminClient: admin,
       scope: `staff_invite:${context.courseId}`,
       subject: email,
       maxRequests: 3,
@@ -212,35 +178,23 @@ export async function inviteStaffAction(previousState, formData) {
     });
     if (!rateLimit.allowed) return { error: `Too many invitation attempts. Try again in ${rateLimit.retryAfterSeconds} seconds.` };
 
-    const invitationId = activeDataBackend === DATA_BACKENDS.SUPABASE
-      ? await operationsRepository.createCourseInvitation(await createClient(), {
-          courseId: context.courseId, email, role,
-        })
-      : membershipService.createInvitation(db, {
-          courseId: context.courseId, email, role, invitedByUserId: context.user.id,
-        }).id;
+    const invitationId = await operationsRepository.createCourseInvitation(await createClient(), {
+      courseId: context.courseId, email, role,
+    });
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
     const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
       redirectTo: `${baseUrl}/auth/confirm?next=/account/update-password`,
       data: { birvo_invitation_id: invitationId },
     });
     if (error) {
-      if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-        await operationsRepository.markCourseInvitationDelivery(admin, {
-          invitationId, error: error.message,
-        });
-      } else {
-        membershipService.markInvitationFailed(db, invitationId, error.message);
-      }
+      await operationsRepository.markCourseInvitationDelivery(admin, {
+        invitationId, error: error.message,
+      });
       return { error: 'The email provider rejected the invitation. No staff access was granted.' };
     }
-    if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-      await operationsRepository.markCourseInvitationDelivery(admin, {
-        invitationId, authUserId: data.user?.id || null,
-      });
-    } else {
-      membershipService.markInvitationSent(db, invitationId, data.user?.id || null);
-    }
+    await operationsRepository.markCourseInvitationDelivery(admin, {
+      invitationId, authUserId: data.user?.id || null,
+    });
     revalidatePath('/admin/course');
     return { success: `Invitation sent to ${email}.` };
   } catch (error) {
@@ -251,17 +205,11 @@ export async function inviteStaffAction(previousState, formData) {
 export async function updateStaffRoleAction(previousState, formData) {
   try {
     const context = await requireAdminRole(COURSE_MANAGEMENT_ROLES);
-    const activeDataBackend = resolveDataBackend();
-    const input = {
+    await operationsRepository.updateCourseMemberRole(await createClient(), {
       courseId: context.courseId,
-      membershipId: persistenceId(formData.get('membershipId'), activeDataBackend),
+      membershipId: normalizeEntityId(formData.get('membershipId')),
       role: formData.get('role'),
-    };
-    if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-      await operationsRepository.updateCourseMemberRole(await createClient(), input);
-    } else {
-      membershipService.updateMemberRole(db, { ...input, actorUserId: context.user.id });
-    }
+    });
     revalidatePath('/admin/course');
     return { success: 'Staff role updated.' };
   } catch (error) {
@@ -272,16 +220,10 @@ export async function updateStaffRoleAction(previousState, formData) {
 export async function removeStaffAction(previousState, formData) {
   try {
     const context = await requireAdminRole(COURSE_MANAGEMENT_ROLES);
-    const activeDataBackend = resolveDataBackend();
-    const input = {
+    await operationsRepository.removeCourseMember(await createClient(), {
       courseId: context.courseId,
-      membershipId: persistenceId(formData.get('membershipId'), activeDataBackend),
-    };
-    if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-      await operationsRepository.removeCourseMember(await createClient(), input);
-    } else {
-      membershipService.removeMember(db, { ...input, actorUserId: context.user.id });
-    }
+      membershipId: normalizeEntityId(formData.get('membershipId')),
+    });
     revalidatePath('/admin/course');
     return { success: 'Staff access removed.' };
   } catch (error) {
@@ -292,16 +234,10 @@ export async function removeStaffAction(previousState, formData) {
 export async function revokeStaffInvitationAction(previousState, formData) {
   try {
     const context = await requireAdminRole(COURSE_MANAGEMENT_ROLES);
-    const activeDataBackend = resolveDataBackend();
-    const input = {
+    await operationsRepository.revokeCourseInvitation(await createClient(), {
       courseId: context.courseId,
-      invitationId: persistenceId(formData.get('invitationId'), activeDataBackend),
-    };
-    if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-      await operationsRepository.revokeCourseInvitation(await createClient(), input);
-    } else {
-      membershipService.revokeInvitation(db, { ...input, actorUserId: context.user.id });
-    }
+      invitationId: normalizeEntityId(formData.get('invitationId')),
+    });
     revalidatePath('/admin/course');
     return { success: 'Invitation revoked.' };
   } catch (error) {

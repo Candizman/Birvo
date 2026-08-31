@@ -1,21 +1,24 @@
-import db from '../../../lib/database';
 import { getAdminContext, COURSE_MANAGEMENT_ROLES, hasAdminRole } from '../../../lib/auth';
-import { createLeague, updateLeagueFormat, generatePlayoffAction } from './actions';
+import { createLeague, updateLeagueFormat, generatePlayoffAction, setHandicapMethod } from './actions';
 import EmptyState from '../../../components/ui/EmptyState';
 import {
   TrophyIcon,
   SparklesIcon,
   FlagstickIcon,
-  ShieldCheckIcon,
-  TargetIcon,
-  UsersIcon,
-  CheckIcon
 } from '../../../components/icons/GolfIcons';
-import dataBackend from '../../../lib/data/backend';
-import leagueRepository from '../../../lib/data/supabase/leagueRepository';
 import { createClient } from '../../../lib/supabase/server';
+import { listFormats } from '../../../lib/domain/leagueFormats';
 
-const { DATA_BACKENDS, resolveDataBackend } = dataBackend;
+// One list, so the dropdown cannot drift from what standings actually does with
+// the value. Formats scored hole by hole say so: a course entering paper cards
+// records a total and nothing else, and should know that before choosing one.
+const FORMAT_OPTIONS = listFormats().map(format => ({
+  value: format.value,
+  label: format.label,
+  longLabel: format.needsHoleScores
+    ? `${format.label} — needs hole-by-hole scores`
+    : format.label,
+}));
 
 function readBracket(value) {
   try {
@@ -34,10 +37,8 @@ export default async function LeaguesPage() {
   }
 
   const courseId = context.courseId;
-  const activeDataBackend = resolveDataBackend();
-  const leagues = activeDataBackend === DATA_BACKENDS.SUPABASE
-    ? await leagueRepository.listCourseLeagues(await createClient(), courseId)
-    : db.prepare("SELECT id, name, status, current_week, season_length_weeks, game_format, playoff_bracket, created_at FROM leagues WHERE course_id = ? AND status != 'trashed' ORDER BY created_at DESC").all(courseId);
+  const { listCourseLeagues } = require('../../../lib/services/leagueService');
+  const leagues = await listCourseLeagues(await createClient(), courseId);
 
   return (
     <div className="container" style={{ padding: 0, maxWidth: '100%' }}>
@@ -87,12 +88,9 @@ export default async function LeaguesPage() {
           <div>
             <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--color-text-muted)', fontSize: '0.85rem', fontWeight: 600 }}>Game Scoring Format</label>
             <select name="gameFormat" style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)', background: 'rgba(0,0,0,0.5)', color: 'white', fontSize: '0.95rem' }}>
-              <option value="stroke_play">Stroke Play (Gross & Net)</option>
-              <option value="match_play">Match Play 1v1 (Hole-by-Hole)</option>
-              <option value="stableford">Stableford Point System</option>
-              <option value="scramble">Scramble (USGA Team Handicap)</option>
-              <option value="skins">Skins Game (Carry-over Pots)</option>
-              <option value="nassau">Nassau (Front / Back / Overall)</option>
+              {FORMAT_OPTIONS.map(format => (
+                <option key={format.value} value={format.value}>{format.longLabel}</option>
+              ))}
             </select>
           </div>
 
@@ -114,6 +112,7 @@ export default async function LeaguesPage() {
             <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-muted)', fontSize: '0.85rem', textTransform: 'uppercase' }}>
               <th style={{ padding: '12px' }}>League Name</th>
               <th style={{ padding: '12px' }}>Current Format</th>
+              <th style={{ padding: '12px' }}>Handicap Method</th>
               <th style={{ padding: '12px' }}>Current Round</th>
               <th style={{ padding: '12px' }}>Status</th>
               <th style={{ padding: '12px', textAlign: 'right' }}>Playoff Bracket</th>
@@ -131,15 +130,44 @@ export default async function LeaguesPage() {
                       defaultValue={l.game_format || 'stroke_play'}
                       style={{ padding: '6px 12px', background: 'rgba(0,0,0,0.5)', border: '1px solid var(--color-border)', color: 'var(--color-primary)', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 600 }}
                     >
-                      <option value="stroke_play">Stroke Play</option>
-                      <option value="match_play">Match Play</option>
-                      <option value="stableford">Stableford</option>
-                      <option value="scramble">Scramble</option>
-                      <option value="skins">Skins</option>
-                      <option value="nassau">Nassau</option>
+                      {FORMAT_OPTIONS.map(format => (
+                        <option key={format.value} value={format.value}>{format.label}</option>
+                      ))}
                     </select>
                     <button type="submit" style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'rgba(255,255,255,0.06)', color: 'white', fontSize: '0.78rem', fontWeight: 750, cursor: 'pointer' }}>
                       Save format
+                    </button>
+                  </form>
+                </td>
+                <td style={{ padding: '14px 12px' }}>
+                  {/* Frozen once the league has scores, the same as the game format:
+                      a season cannot change how it calculates handicaps mid-way. */}
+                  <form action={setHandicapMethod} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <input type="hidden" name="leagueId" value={l.id} />
+                    <select
+                      name="handicapMethod"
+                      defaultValue={l.handicap_method || 'whs'}
+                      title="How each team's handicap is calculated from their scores"
+                      style={{ padding: '6px 12px', background: 'rgba(0,0,0,0.5)', border: '1px solid var(--color-border)', color: 'var(--color-primary)', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      <option value="whs">World Handicap System</option>
+                      <option value="best_of">Best half of last 10</option>
+                      <option value="league_average">Average of all rounds</option>
+                    </select>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>
+                      <input
+                        type="number"
+                        name="allowancePercent"
+                        defaultValue={l.handicap_allowance_percent ?? 80}
+                        min="50"
+                        max="100"
+                        title="Share of the handicap actually given. 80% is the common league setting."
+                        style={{ width: '58px', padding: '6px', background: 'rgba(0,0,0,0.5)', border: '1px solid var(--color-border)', color: 'white', borderRadius: '6px', fontSize: '0.85rem', textAlign: 'center', fontWeight: 700 }}
+                      />
+                      %
+                    </label>
+                    <button type="submit" style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'rgba(255,255,255,0.06)', color: 'white', fontSize: '0.78rem', fontWeight: 750, cursor: 'pointer' }}>
+                      Save
                     </button>
                   </form>
                 </td>

@@ -1,6 +1,6 @@
-import db from '../../../lib/database';
 import { getAdminContext } from '../../../lib/auth';
 import { getSeasonEndStatus } from '../../../lib/services/seasonEndService';
+import { createClient } from '../../../lib/supabase/server';
 import EmptyState from '../../../components/ui/EmptyState';
 import SeasonEndView from './SeasonEndView';
 
@@ -10,7 +10,10 @@ export default async function SeasonEndPage() {
     return <EmptyState title="No League Selected" description="Please select a league to view its season end status." />;
   }
 
-  const status = getSeasonEndStatus(db, context.leagueId);
+  const status = await getSeasonEndStatus(await createClient(), {
+    courseId: context.courseId,
+    leagueId: context.leagueId,
+  });
 
   if (!status.isSeasonComplete) {
     return (

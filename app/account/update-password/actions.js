@@ -1,15 +1,10 @@
 'use server'
 
 import { redirect } from 'next/navigation';
-import db from '../../../lib/database';
 import { createClient } from '../../../lib/supabase/server';
 import { createAdminClient } from '../../../lib/supabase/admin';
-import membershipService from '../../../lib/services/membershipService';
-import dataBackend from '../../../lib/data/backend';
 import persistentRateLimit from '../../../lib/data/persistentRateLimit';
 import workspaceRepository from '../../../lib/data/supabase/workspaceRepository';
-
-const { DATA_BACKENDS, resolveDataBackend } = dataBackend;
 
 export async function updatePassword(previousState, formData) {
   const password = String(formData.get('password') || '');
@@ -20,15 +15,15 @@ export async function updatePassword(previousState, formData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login?error=link');
-  const activeDataBackend = resolveDataBackend();
-  const adminClient = activeDataBackend === DATA_BACKENDS.SUPABASE ? createAdminClient() : null;
-  if (activeDataBackend === DATA_BACKENDS.SUPABASE && !adminClient) {
+
+  const adminClient = createAdminClient();
+  if (!adminClient) {
     return { error: 'Password security services are not configured.' };
   }
   let allowed;
   try {
     allowed = await persistentRateLimit.checkDataRateLimit({
-      backend: activeDataBackend, sqliteDb: db, adminClient,
+      adminClient,
       scope: 'password_update', subject: user.id, maxRequests: 5, windowMs: 60 * 60 * 1000,
     });
   } catch {
@@ -38,14 +33,11 @@ export async function updatePassword(previousState, formData) {
 
   const { error } = await supabase.auth.updateUser({ password });
   if (error) return { error: 'The password could not be updated. Request a new recovery link and try again.' };
-  if (activeDataBackend === DATA_BACKENDS.SUPABASE) {
-    try {
-      await workspaceRepository.acceptPendingInvitations(supabase);
-    } catch {
-      return { error: 'Your password was updated, but course access could not be activated. Sign in and try again.' };
-    }
-  } else if (user.email) {
-    membershipService.acceptPendingInvitations(db, { userId: user.id, email: user.email });
+
+  try {
+    await workspaceRepository.acceptPendingInvitations(supabase);
+  } catch {
+    return { error: 'Your password was updated, but course access could not be activated. Sign in and try again.' };
   }
   redirect('/admin');
 }

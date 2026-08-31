@@ -1,24 +1,36 @@
 import { NextResponse } from 'next/server';
-import db from '../../../lib/database';
-import { hasPublicLeagueAccess } from '../../../lib/publicAccess';
 import QRCode from 'qrcode';
+import publicAccessRepository from '../../../lib/data/supabase/publicAccessRepository';
+import playerRepository from '../../../lib/data/supabase/playerRepository';
+import { createAdminClient } from '../../../lib/supabase/admin';
+import entityIds from '../../../lib/security/entityId';
+
+const { UUID_PATTERN, normalizeEntityId } = entityIds;
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-  const leagueId = searchParams.get('leagueId');
+  const rawLeagueId = normalizeEntityId(searchParams.get('leagueId'));
   const access = searchParams.get('access');
 
-  if (!leagueId) {
+  if (!rawLeagueId || !UUID_PATTERN.test(rawLeagueId)) {
     return NextResponse.json({ error: 'League ID is required.' }, { status: 400 });
   }
 
-  const league = db.prepare("SELECT id FROM leagues WHERE id = ? AND status = 'active'").get(parseInt(leagueId));
-  if (!league || !hasPublicLeagueAccess(access, { leagueId: league.id, purpose: 'player', db })) {
+  const adminClient = createAdminClient();
+  if (!adminClient) {
+    return NextResponse.json({ error: 'Service credentials are not configured.' }, { status: 503 });
+  }
+
+  const allowed = await publicAccessRepository.validatePublicLeagueAccess(
+    adminClient, access, { leagueId: rawLeagueId, purpose: 'player' }
+  );
+  const leagueContext = allowed ? await playerRepository.getActiveLeagueContext(adminClient, rawLeagueId) : null;
+  if (!leagueContext) {
     return NextResponse.json({ error: 'Active league not found.' }, { status: 404 });
   }
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-  const joinUrl = `${baseUrl}/join/${leagueId}?access=${encodeURIComponent(access || '')}`;
+  const joinUrl = `${baseUrl}/join/${rawLeagueId}?access=${encodeURIComponent(access || '')}`;
 
   const qrImage = await QRCode.toBuffer(joinUrl, {
     type: 'png',

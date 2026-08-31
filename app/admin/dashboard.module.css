@@ -9,34 +9,34 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 2.25rem;
+  margin-bottom: 2.5rem;
   flex-wrap: wrap;
   gap: 1.5rem;
   border-bottom: 1px solid var(--color-border);
-  padding-bottom: 1.75rem;
+  padding-bottom: 2rem;
 }
 
 .courseBadge {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   background: #ecfdf5;
   border: 1px solid #a7f3d0;
-  padding: 5px 14px;
+  padding: 8px 16px;
   border-radius: 9999px;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
 }
 
 .courseBadgeText {
   color: #047857;
-  font-size: 0.85rem;
+  font-size: 1.05rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .leagueName {
-  font-size: 2.4rem;
+  font-size: 2.8rem;
   margin: 0;
   font-weight: 900;
   color: var(--color-text-main);
@@ -45,9 +45,9 @@
 
 .leagueMeta {
   color: var(--color-text-muted);
-  margin-top: 6px;
-  font-size: 1.05rem;
-  line-height: 1.5;
+  margin-top: 10px;
+  font-size: 1.25rem;
+  line-height: 1.6;
 }
 
 .leagueMetaStrong {
@@ -57,8 +57,12 @@
 
 .quickActions {
   display: flex;
-  gap: 0.75rem;
+  gap: 1rem;
   flex-wrap: wrap;
+}
+
+.quickActions > * {
+  min-height: 44px;
 }
 
 /* ─── Scoring Status Section ─────────────────────────────────────────────── */
@@ -90,12 +94,12 @@
 
 .statusLabelText {
   color: var(--color-text-main);
-  font-size: 1.1rem;
+  font-size: 1.25rem;
   font-weight: 800;
 }
 
 .statusCount {
-  font-size: 1.05rem;
+  font-size: 1.2rem;
   font-weight: 800;
 }
 
@@ -144,22 +148,35 @@
 }
 
 .sectionTitle {
-  font-size: 1.25rem;
+  font-size: 1.4rem;
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .sectionAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
   color: #059669;
-  font-size: 0.92rem;
+  font-size: 1.05rem;
   font-weight: 800;
   text-decoration: none;
+  padding: 0 14px;
+  border-radius: 8px;
 }
 
-.sectionAction:hover {
+.sectionAction:hover,
+.sectionAction:focus-visible {
   text-decoration: underline;
+  background: #ecfdf5;
+  outline: none;
+}
+
+.sectionAction:focus-visible {
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.4);
 }
 
 /* ─── Standings Table ────────────────────────────────────────────────────── */
@@ -173,13 +190,13 @@
 .standingsTableHead {
   border-bottom: 1px solid var(--color-border);
   color: var(--color-text-muted);
-  font-size: 0.85rem;
+  font-size: 1rem;
   text-transform: uppercase;
   letter-spacing: 0.6px;
 }
 
 .standingsTableHead th {
-  padding: 12px 10px;
+  padding: 16px 12px;
 }
 
 .standingsTableRow {
@@ -194,13 +211,13 @@
 .teamName {
   font-weight: 800;
   color: var(--color-text-main);
-  font-size: 1.02rem;
+  font-size: 1.15rem;
 }
 
 .grossScore {
   text-align: center;
   color: var(--color-text-muted);
-  font-size: 1rem;
+  font-size: 1.15rem;
   font-weight: 600;
 }
 
@@ -208,18 +225,18 @@
   text-align: center;
   color: var(--color-info);
   font-weight: 800;
-  font-size: 1.05rem;
+  font-size: 1.2rem;
 }
 
 .points {
   text-align: right;
   font-weight: 900;
   color: #059669;
-  font-size: 1.2rem;
+  font-size: 1.35rem;
 }
 
 .pointsUnit {
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   color: var(--color-text-subtle);
 }
 

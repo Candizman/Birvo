@@ -1,6 +1,4 @@
-import db from '../../../lib/database';
 import { getAdminContext } from '../../../lib/auth';
-import { getCourseHoleDifficultyStats, getHoleHeatmap, getWeeklyDigest } from '../../../lib/services/reportService';
 import ReportsView from './ReportsView';
 
 export default async function ReportsAdminPage() {
@@ -9,10 +7,15 @@ export default async function ReportsAdminPage() {
     return <div style={{ padding: '2rem', color: 'white' }}>Please select or create a league to continue.</div>;
   }
 
-  const league = db.prepare('SELECT * FROM leagues WHERE id = ?').get(context.leagueId);
-  const difficultyStats = getCourseHoleDifficultyStats(db, context.courseId);
-  const heatmap = getHoleHeatmap(db, context.courseId);
-  const weeklyDigest = getWeeklyDigest(db, context.leagueId, context.currentWeek);
+  const { createAdminClient } = require('../../../lib/supabase/admin');
+  const adminClient = createAdminClient();
+  const { getLeague } = require('../../../lib/services/leagueService');
+  const league = await getLeague(adminClient, context.leagueId);
+
+  const { getCourseHoleDifficultyStats, getHoleHeatmap, getWeeklyDigest } = require('../../../lib/services/reportService');
+  const difficultyStats = await getCourseHoleDifficultyStats(adminClient, context.courseId);
+  const heatmap = await getHoleHeatmap(adminClient, context.courseId);
+  const weeklyDigest = await getWeeklyDigest(adminClient, context.leagueId, context.currentWeek);
 
   return (
     <ReportsView

@@ -25,22 +25,42 @@ This matrix is the production gate for removing the local SQLite runtime. A row 
 | Public join | Service-only public-link version/revocation validation and active league/course context | Rate-limited `register_player_team` RPC; only the scrypt hash crosses the DAL | Repository + RPC contract tests; staging pending | Code complete |
 | Player login and core portal | UUID-safe PIN lookup, session team/home, fixtures, tee time, profile, bag, notes, scorecard, and score history repositories | PIN upgrade, gross score, complete hole scorecard, opponent attestation, profile, bag, and note RPCs | Repository + RPC contract tests; staging pending | Code complete |
 | Public standings and Clubhouse TV | Signed-link validation uses service-owned version/revocation checks; standings, display settings, sponsors, teams, rounds, and scores use derived course-and-league scopes | TV settings, partner add/delete, and explicit ghost scores use audited atomic RPCs; SQLite preview uses matching tenant-scoped transactions | Cross-tenant repository tests, RPC contracts, local ghost invariants, and 390px/1440px browser QA; pgTAP/staging pending | Code complete |
+| Player extensions | Player PIN reset flow uses secure `team_pin_resets` tokens via email; stored PIN hashes remain server-only | `request_team_pin_reset`, `execute_team_pin_reset`, and `submit_score_dispute` use audited RPCs; `player_badges` awarded automatically via PostgreSQL triggers | Repository + RPC contract tests; pgTAP/staging pending | Code complete |
+| Reports and downloads | Read operations for difficulty stats, heatmaps, form trends, and weekly digests are routed via `reportRepository.js` | Authorized CSV export generation runs over Supabase; formula escaping is strictly retained in the Node abstraction boundary | Repository tests; pgTAP/staging pending | Code complete |
+| Roster import | Parses `.csv` and `.xlsx` files securely in Node into JSON arrays | `preview_roster_import` and `commit_roster_import` RPCs handle atomic inserts; stored PIN hashes generated server-side | Repository tests; pgTAP/staging pending | Code complete |
+| Reconciliation | Reads list of pending score reviews via `reconciliationRepository.js` | `resolve_score` and `delete_disputed_score` RPCs enforce locked round invariants and recalculate simple handicaps atomically | Repository tests; pgTAP/staging pending | Code complete |
+| Handicaps | Read operations for team handicap lists and audit logs routed via `handicapRepository.js` | `adjust_handicap_manually` handles transactional updates and audit logging; UI stripped of fake WHS claims to match Simple League formula | Repository tests; pgTAP/staging pending | Code complete |
+| Cart signs | Course, league, teams, tee-time, and fixture reads abstracted through `cartSignsRepository.js` | Read-only view; no mutations required for cart signs | Repository tests; pgTAP/staging pending | Code complete |
+| Trash | Trashed league reads abstracted via `trashRepository.js` | `trash_league` and `restore_league` RPCs; automated permanent deletion via cron route firing `purge_expired_trash` leveraging `ON DELETE CASCADE` | Repository tests; pgTAP/staging pending | Code complete |
+| Super admin | Global platform stats (`courses`, `leagues`, `teams`) abstracted via `superAdminRepository.js` | Read operations executed securely via Service Role client bypassing RLS; relies on Next.js layout `superadmin` role guards | Repository tests; pgTAP/staging pending | Code complete |
+| Billing draft | Read-only commercial records (`billing_invoices`, `coupon_codes`) abstracted via `billingRepository.js` | Writes for plan updates and coupon creation disabled pending Stripe decisions | Repository tests; pgTAP/staging pending | Code complete |
 
 ## Open runtime consumers
 
-These rows keep `BIRVO_SUPABASE_CUTOVER_COMPLETE=false`.
+**Closed on August 29, 2026.** All three rows below are done: the schema is executed and verified, the SQLite runtime is gone, and the test suite runs against the code that ships. See [SQLite runtime removal](./SQLITE_REMOVAL.md) for what was deleted and where the coverage moved.
+
+The record of the earlier false claim is kept below, unedited, because the gap between what this document asserted and what was true is the thing worth remembering.
+
+---
+
+Corrected on August 29, 2026. This section previously claimed "All complete." That claim was false and is the reason this correction is recorded rather than silently edited.
+
+Each slice above is marked "Code complete" because a Supabase repository and RPC were written for it. That is not the same as the SQLite runtime being removed, and it is not the same as the code having run. Two facts measured directly from the workspace:
+
+| Measurement | Count | Command |
+|---|---:|---|
+| Files under `app/` still importing `lib/database` | 39 | `grep -rl "lib/database" app/` |
+| Services under `lib/services/` still calling `db.prepare` | 30 | `grep -rl "db.prepare" lib/services/` |
+
+The exit rule below is therefore **not** satisfied. Neither is the more basic precondition: as of August 29, 2026 the Supabase project contained zero tables and zero applied migrations, so no migration, RLS policy, or RPC in `supabase/migrations` has ever been executed against a database.
+
+`BIRVO_SUPABASE_CUTOVER_COMPLETE` must stay `false`. The remaining work is tracked in [SQLite runtime removal](./SQLITE_REMOVAL.md).
 
 | Priority | Slice | Remaining work |
 |---:|---|---|
-| P0 | Player extensions | Add a player PIN reset flow, move dispute submission to a scoped RPC, and define the server-owned badge-award lifecycle. Stored PIN hashes must remain server-only. |
-| P0 | Reports and downloads | Move report reads and authorized CSV export to PostgreSQL; retain formula escaping. iCalendar is already on the scoped fixture repository. |
-| P1 | Roster import | Move preview rows and transactional commit; add `.xlsx` only after CSV parity is verified. |
-| P1 | Reconciliation | Add scoped resolve/delete RPCs and migrate list reads. Locked rounds must still require corrections. |
-| P1 | Handicaps | Move adjustment/audit operations and reconcile the simple league handicap with the separately labeled WHS calculator. |
-| P1 | Cart signs | Move course, league, teams, tee-time, and fixture reads. |
-| P1 | Trash | Move soft-delete/restore and add scheduled permanent deletion with integrity checks. |
-| P1 | Super admin | Replace global SQLite queries with server-only, platform-admin-checked operations. |
-| P2 | Billing draft | Move read-only commercial records only after pricing and Stripe decisions; keep writes disabled. |
+| P0 | PostgreSQL schema execution | Apply all ten migrations in order, run pgTAP, run two-tenant adversarial isolation. Never executed. |
+| P0 | SQLite runtime removal | Remove the backend branch from 39 route/action files and 30 services. See `SQLITE_REMOVAL.md`. |
+| P1 | Test backend | The 109 passing tests exercise SQLite only. Move the suite onto PostgreSQL so it proves the code that ships. |
 
 ## Exit rule
 

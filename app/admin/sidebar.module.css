@@ -36,39 +36,45 @@
 }
 
 .brand > span {
-  color: #7a8c85;
-  font-size: 0.69rem;
+  color: #4a5d54;
+  font-size: 0.9rem;
   font-weight: 750;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
 .searchButton {
   width: 100%;
-  min-height: 43px;
-  margin: 18px 0 20px;
-  padding: 0 12px;
+  min-height: 48px;
+  margin: 18px 0 24px;
+  padding: 0 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border: 1px solid #dce5e0;
-  border-radius: 11px;
-  color: #60746c;
-  background: #f7f9f7;
+  border: 1px solid #c9d8d0;
+  border-radius: 12px;
+  color: #3f544a;
+  background: #f1f5f3;
   cursor: pointer;
-  transition: border-color 150ms ease, background 150ms ease;
+  transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
 }
 
-.searchButton:hover {
-  border-color: #b8d7c9;
-  background: #f1f7f4;
+.searchButton:hover,
+.searchButton:focus-visible {
+  border-color: #a3c9b6;
+  background: #e8f0ec;
+  outline: none;
+}
+
+.searchButton:focus-visible {
+  box-shadow: 0 0 0 3px rgba(29, 122, 95, 0.4);
 }
 
 .searchButton > span {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.8rem;
+  gap: 10px;
+  font-size: 0.95rem;
   font-weight: 700;
 }
 
@@ -77,13 +83,13 @@
 }
 
 .searchButton kbd {
-  padding: 3px 6px;
-  border: 1px solid #dce5e0;
+  padding: 4px 8px;
+  border: 1px solid #c9d8d0;
   border-radius: 6px;
-  color: #83918c;
+  color: #5c6e65;
   background: #fff;
   font-family: inherit;
-  font-size: 0.62rem;
+  font-size: 0.8rem;
   font-weight: 800;
 }
 
@@ -98,53 +104,60 @@
 }
 
 .navGroup h2 {
-  margin: 0 0 7px;
-  padding: 0 11px;
-  color: #91a099;
-  font-size: 0.62rem;
-  font-weight: 850;
-  letter-spacing: 0.12em;
+  margin: 0 0 10px;
+  padding: 0 14px;
+  color: #4a5d54;
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .navGroup > div {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 6px;
 }
 
 .navLink,
 .activeLink {
-  min-height: 40px;
-  padding: 0 11px;
+  min-height: 48px;
+  padding: 0 14px;
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 14px;
   border: 1px solid transparent;
-  border-radius: 10px;
-  font-size: 0.79rem;
+  border-radius: 12px;
+  font-size: 1.05rem;
   font-weight: 700;
-  transition: color 150ms ease, background 150ms ease, border-color 150ms ease;
+  transition: color 150ms ease, background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
 }
 
 .navLink {
-  color: #53675f;
+  color: #294a40;
 }
 
 .navLink svg {
-  color: #819089;
+  color: #4a5d54;
 }
 
-.navLink:hover {
-  color: #183c32;
-  background: #f3f6f4;
+.navLink:hover,
+.navLink:focus-visible {
+  color: #0d3829;
+  background: #eaf1ed;
+  outline: none;
+}
+
+.navLink:focus-visible,
+.activeLink:focus-visible {
+  box-shadow: 0 0 0 3px rgba(29, 122, 95, 0.4);
 }
 
 .activeLink {
-  color: #145c49;
-  border-color: #d4eadf;
-  background: #eaf5f0;
-  box-shadow: inset 3px 0 #1d7a5f;
+  color: #0b4535;
+  border-color: #b8d7c9;
+  background: #e1efe8;
+  box-shadow: inset 4px 0 #135f49;
 }
 
 .activeLink svg {
@@ -153,18 +166,18 @@
 
 .workspaceStatus {
   margin-top: 12px;
-  padding: 13px;
+  padding: 16px 14px;
   display: flex;
   align-items: center;
-  gap: 11px;
-  border: 1px solid #dce5e0;
+  gap: 14px;
+  border: 1px solid #c9d8d0;
   border-radius: 12px;
-  background: #f8faf8;
+  background: #f4f7f5;
 }
 
 .statusDot {
-  width: 9px;
-  height: 9px;
+  width: 10px;
+  height: 10px;
   flex: 0 0 auto;
   border-radius: 50%;
   background: #31a67a;
@@ -174,17 +187,17 @@
 .workspaceStatus div {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
 .workspaceStatus strong {
-  color: #294a40;
-  font-size: 0.72rem;
+  color: #1a332a;
+  font-size: 0.95rem;
 }
 
 .workspaceStatus div span {
-  color: #819088;
-  font-size: 0.64rem;
+  color: #5c6e65;
+  font-size: 0.85rem;
 }
 
 .mobileBar,
@@ -215,18 +228,24 @@
   }
 
   .menuButton {
-    width: 42px;
-    height: 42px;
+    width: 44px;
+    height: 44px;
     display: grid;
     place-content: center;
-    gap: 4px;
-    border: 1px solid #dce5e0;
+    gap: 5px;
+    border: 1px solid #c9d8d0;
     border-radius: 11px;
-    background: #f7f9f7;
+    background: #f1f5f3;
+    cursor: pointer;
+  }
+
+  .menuButton:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(29, 122, 95, 0.4);
   }
 
   .menuButton span {
-    width: 18px;
+    width: 20px;
     height: 2px;
     border-radius: 2px;
     background: #234a3e;
